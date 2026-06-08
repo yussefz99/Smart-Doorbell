@@ -1,0 +1,15 @@
+# Secrets
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Database & runtime data
+backend/doorbell.db
+backend/photos/
+backend/*.log
+
+# OS
+.DS_Store
+Thumbs.db
