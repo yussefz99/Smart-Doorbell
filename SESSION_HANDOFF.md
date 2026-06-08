@@ -69,10 +69,10 @@ EN
 ## Credentials (already filled in sketch and .env)
 
 ```
-WiFi SSID:     Laura
-WiFi Password: 0545356863
-BOT_TOKEN:     8826200691:AAHa7xik9owDwAcb06JDhBk6JNbwPgpZcwc
-CHAT_ID:       1078220538
+WiFi SSID:     YOUR_WIFI_SSID
+WiFi Password: YOUR_WIFI_PASSWORD
+BOT_TOKEN:     YOUR_BOT_TOKEN_HERE
+CHAT_ID:       YOUR_CHAT_ID
 ```
 
 ---
@@ -148,10 +148,10 @@ After `esp_camera_init()`, the ESP32's LEDC peripheral takes over GPIO 0 and dri
 
 ```cpp
 // Credentials — already filled
-const char* WIFI_SSID     = "Laura";
-const char* WIFI_PASSWORD = "0545356863";
-const char* BOT_TOKEN     = "8826200691:AAHa7xik9owDwAcb06JDhBk6JNbwPgpZcwc";
-const char* CHAT_ID       = "1078220538";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* BOT_TOKEN     = "YOUR_BOT_TOKEN_HERE";
+const char* CHAT_ID       = "YOUR_CHAT_ID";
 const char* BACKEND_URL   = "";  // fill with ngrok URL when ready
 
 // Pin definitions

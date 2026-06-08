@@ -12,10 +12,10 @@
 
 // ── Credentials ─────────────────────────────────────────────
 // Fill in your own values. Do NOT commit real secrets to git.
-const char* WIFI_SSID     = "Yussef";   // your WiFi name
-const char* WIFI_PASSWORD = "yussef7855";   // your WiFi password
-const char* BOT_TOKEN   = "8826200691:AAHa7xik9owDwAcb06JDhBk6JNbwPgpZcwc";   // from BotFather  e.g. 7123456789:AAFxxx
-const char* CHAT_ID       = "1078220538";   // numeric chat ID e.g. 123456789
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";   // your WiFi name
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // your WiFi password
+const char* BOT_TOKEN   = "YOUR_BOT_TOKEN_HERE";   // from BotFather  e.g. 7123456789:AAFxxx
+const char* CHAT_ID       = "YOUR_CHAT_ID";   // numeric chat ID e.g. 123456789
 // ────────────────────────────────────────────────────────────
 
 #define LED_GREEN   2

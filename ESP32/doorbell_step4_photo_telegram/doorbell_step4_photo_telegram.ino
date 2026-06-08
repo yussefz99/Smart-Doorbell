@@ -10,10 +10,10 @@
 #include <WiFiClientSecure.h>
 
 // ── Credentials ──────────────────────────────────────────────
-const char* WIFI_SSID     = "Yussef";
-const char* WIFI_PASSWORD = "yussef7855";
-const char* BOT_TOKEN     = "8826200691:AAHa7xik9owDwAcb06JDhBk6JNbwPgpZcwc";
-const char* CHAT_ID       = "1078220538";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* BOT_TOKEN     = "YOUR_BOT_TOKEN_HERE";
+const char* CHAT_ID       = "YOUR_CHAT_ID";
 // ─────────────────────────────────────────────────────────────
 
 // ── AI Thinker ESP32-CAM pin definition ──────────────────────

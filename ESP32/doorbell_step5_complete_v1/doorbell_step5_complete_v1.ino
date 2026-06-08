@@ -13,10 +13,10 @@
 #include <WiFiClientSecure.h>
 
 // ── Credentials ──────────────────────────────────────────────
-const char* WIFI_SSID     = "Laura";
-const char* WIFI_PASSWORD = "0545356863";
-const char* BOT_TOKEN     = "8826200691:AAHa7xik9owDwAcb06JDhBk6JNbwPgpZcwc";
-const char* CHAT_ID       = "1078220538";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* BOT_TOKEN     = "YOUR_BOT_TOKEN_HERE";
+const char* CHAT_ID       = "YOUR_CHAT_ID";
 const char* BACKEND_URL   = "";  // leave empty for now
 
 // ── Backend server URL ────────────────────────────────────────
