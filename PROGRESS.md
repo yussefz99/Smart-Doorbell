@@ -275,13 +275,64 @@ The CS-CAM carrier board pin/pad type is unclear — need to see close-up to con
 
 ---
 
+## Session 9 — Cloud Migration + Full V1 Verified on Hardware
+
+### What was done
+
+#### Hardware unit tests report (deadline 9/6)
+- Identified CS-CAM connector type from close-up photos: **bare solder pads** (module pins soldered face-down, holes filled) → button wiring requires **soldering** (iron available at university lab)
+- Filled and submitted `HARDWARE UNIT TESTS REPORT - Smart Doorbell - Group 15.docx`: 4 passing tests, button blocked on soldering, 3 missing components
+- Requested missing hardware via WhatsApp: PIR sensor, MAX98357A + speaker, **0.96″ OLED SSD1306 I²C** (chosen from catalog — only 2 pins, ESP32-CAM is pin-starved)
+
+#### Security cleanup
+- Pushed all project files to GitHub with `.gitignore` excluding secrets
+- Redacted real credentials from all sketches and docs (replaced with placeholders)
+- Firmware credentials moved to gitignored `secrets.h` (+ committed `secrets.h.example` template)
+- ⚠️ Old bot token still in git history — revocation deferred by team
+
+#### Cloud migration (Supabase + Railway) — replaces SQLite + ngrok
+- TA approved free choice of stack; compared Firebase / Supabase / Railway — chose **FastAPI + Supabase Postgres on Railway** (keeps tested code, free tier, SQL ports 1:1)
+- Created Supabase project (`visits` + `device_status` tables, RLS enabled)
+- Migrated `server.py` from `sqlite3` to `psycopg2` (placeholders, `RETURNING`, `FILTER`, `EXTRACT`, real `TIMESTAMPTZ`/`BOOLEAN`)
+- Deployed to Railway: root directory `/backend`, `Procfile`, env vars (`BOT_TOKEN`, `CHAT_ID`, `DATABASE_URL`)
+- Debugged deploy chain: root-directory staging, `psycopg2-binary` 2.9.10 needed for Python 3.13 wheels, stray whitespace in pasted env values (now `.strip()`ed in code)
+- Telegram webhook registered permanently to the Railway URL — **ngrok retired**
+- **Verified round-trip:** visit → Telegram → reply tap → Supabase → dashboard
+
+#### Firmware fixes (all verified on real hardware)
+- **`TRIGGER_ON_BOOT` demo mode** — carrier's RESET button fires one doorbell event, bypassing the unwired GPIO 13 button
+- **Duplicate notification bug fixed** — ESP32 now uploads the photo (multipart) to `/api/visits`; the backend sends the single Telegram message with photo + working reply buttons (direct Telegram send kept as fallback when `BACKEND_URL` empty)
+- Backend photo links built from `PUBLIC_BASE_URL` (Railway) instead of localhost so Telegram can fetch them
+- **Camera output flipped 180°** in software (`set_vflip` + `set_hmirror`) — module sits rotated in carrier
+
+#### Dashboard on the public internet
+- Dashboard served by FastAPI at the Railway root URL with same-origin API/WebSocket URLs (file:// fallback to localhost kept for dev)
+- Live at: **https://smart-doorbell-production.up.railway.app**
+
+### Full verified flow (real hardware, 2026-06-10)
+```
+RESET press → photo captured (upright) → multipart upload to Railway (201)
+  → saved in Supabase → ONE Telegram photo message with buttons
+  → reply tapped → caption edited, response in Supabase
+  → dashboard updates live from anywhere
+```
+
+### Files produced / updated
+- `backend/server.py` — Postgres migration, dashboard route, Telegram failure tolerance
+- `backend/telegram_bot.py` — env value hardening, `PUBLIC_BASE_URL`
+- `backend/Procfile` — new (Railway start command)
+- `ESP32/doorbell_step5_complete_v1/` — demo mode, photo upload, camera flip, `secrets.h` (+example)
+- `.gitignore`, `SESSION_HANDOFF.md` — updated
+
+---
+
 ## Open Decisions
 
 | # | Decision | Status |
 |---|----------|--------|
-| 1 | Audio response to visitor: buzzer tones vs voice playback (MAX98357A + speaker) | ⏳ Waiting for team decision |
-| 2 | PIR motion sensor: include in V1 or defer to V4 | Deferred to V4 |
-| 3 | Cloud deployment: Railway vs Firebase | ⏳ Decide after hardware arrives |
+| 1 | Audio response to visitor: buzzer tones vs voice playback (MAX98357A + speaker) | ⏳ Waiting for team decision + hardware |
+| 2 | PIR motion sensor: include or drop | Hardware requested; team OK to drop feature if unavailable |
+| 3 | Cloud deployment: Railway vs Firebase | ✅ **Decided & done: Railway + Supabase Postgres** |
 
 ---
 
@@ -290,8 +341,11 @@ The CS-CAM carrier board pin/pad type is unclear — need to see close-up to con
 | # | Issue | Resolution |
 |---|-------|------------|
 | 1 | GPIO 13 shared by red LED and PIR sensor | Red LED reassigned to GPIO 4 |
-| 2 | Camera capture untested | Waiting for physical hardware |
+| 2 | Camera capture untested | ✅ Tested on hardware — works (incl. 180° flip fix) |
 | 3 | Settings toggles are UI only | Will be wired to backend in V2 |
-| 4 | ngrok URL changes on every restart | Must re-register webhook each time — fixed by cloud deployment later |
+| 4 | ngrok URL changes on every restart | ✅ Fixed — permanent Railway URL, webhook registered once |
 | 5 | GPIO 0 (BOOT button) used as camera XCLK — continuous photo trigger | Fixed: BUTTON_PIN changed to GPIO 13, external button required |
-| 6 | CS-CAM carrier board pin connector type unclear | Pending close-up photo — may require soldering |
+| 6 | CS-CAM carrier board pin connector type unclear | ✅ Identified: bare solder pads — solder button at lab, then set `TRIGGER_ON_BOOT false` |
+| 7 | Old bot token exposed in git history | ⏳ Revoke via BotFather later, update .env + Railway + secrets.h |
+| 8 | Photos on Railway ephemeral disk — dashboard links break on redeploy | Planned: Supabase Storage |
+| 9 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page stale | Planned next |
