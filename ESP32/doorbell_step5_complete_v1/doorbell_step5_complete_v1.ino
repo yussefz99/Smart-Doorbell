@@ -236,7 +236,16 @@ bool initCamera() {
   config.jpeg_quality = 10;
   config.fb_count     = 1;
 
-  return esp_camera_init(&config) == ESP_OK;
+  if (esp_camera_init(&config) != ESP_OK) return false;
+
+  // Camera module sits rotated 180° in the CS-CAM carrier —
+  // flip the sensor output so photos arrive upright.
+  sensor_t* s = esp_camera_sensor_get();
+  if (s) {
+    s->set_vflip(s, 1);
+    s->set_hmirror(s, 1);
+  }
+  return true;
 }
 
 camera_fb_t* capturePhoto() {
