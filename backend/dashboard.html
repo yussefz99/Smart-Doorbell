@@ -236,7 +236,7 @@ tbody tr { transition: background .1s; }
 tbody tr:hover { background: var(--surface2); }
 
 .thumb {
-  width: 44px; height: 36px;
+  width: 80px; height: 60px;
   border-radius: 5px;
   object-fit: cover;
   background: var(--surface2);
@@ -246,7 +246,36 @@ tbody tr:hover { background: var(--surface2); }
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
-.thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; }
+.thumb img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.thumb img:hover { transform: scale(1.06); box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+
+/* ── Photo lightbox ─────────────────────────────────────── */
+.lightbox {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1000;
+  align-items: center; justify-content: center;
+  cursor: zoom-out;
+}
+.lightbox.open { display: flex; }
+.lightbox img {
+  max-width: 92vw; max-height: 88vh;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+.lightbox .lb-close {
+  position: fixed; top: 18px; right: 24px;
+  font-size: 28px; color: #fff;
+  background: none; border: none; cursor: pointer;
+  opacity: 0.7;
+}
+.lightbox .lb-close:hover { opacity: 1; }
 
 .badge {
   display: inline-flex;
@@ -712,6 +741,11 @@ select.setting-select {
 <!-- Toast area -->
 <div id="toast-area"></div>
 
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lb-close" title="Close">✕</button>
+  <img id="lightbox-img" src="" alt="visit photo">
+</div>
+
 <script>
 // ── Config ────────────────────────────────────────────────
 // Served over HTTP (Railway or local uvicorn): use the same origin.
@@ -721,6 +755,19 @@ const API = SAME_ORIGIN ? '' : 'http://localhost:8001';
 const WS  = SAME_ORIGIN
   ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'
   : 'ws://localhost:8001/ws';
+
+// ── Photo lightbox ────────────────────────────────────────
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
 
 // ── State ─────────────────────────────────────────────────
 let visits      = [];
@@ -877,7 +924,7 @@ function renderVisitsTable() {
       <td>
         <div class="thumb">
           ${v.photo_url
-            ? `<img src="${v.photo_url.startsWith('http') ? v.photo_url : API + v.photo_url}" alt="visit">`
+            ? `<img src="${v.photo_url.startsWith('http') ? v.photo_url : API + v.photo_url}" alt="visit" onclick="openLightbox(this.src)">`
             : '📷'}
         </div>
       </td>
