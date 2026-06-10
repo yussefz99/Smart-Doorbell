@@ -877,7 +877,7 @@ function renderVisitsTable() {
       <td>
         <div class="thumb">
           ${v.photo_url
-            ? `<img src="${API}${v.photo_url}" alt="visit">`
+            ? `<img src="${v.photo_url.startsWith('http') ? v.photo_url : API + v.photo_url}" alt="visit">`
             : '📷'}
         </div>
       </td>

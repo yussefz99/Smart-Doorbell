@@ -59,8 +59,9 @@ async def send_visit_notification(visit: dict) -> int | None:
 
     async with httpx.AsyncClient() as client:
         if photo_url:
-            # Send actual photo from our server (must be publicly reachable)
-            full_url = f"{PUBLIC_BASE_URL}{photo_url}"
+            # Absolute URL (Supabase Storage) is used as-is; relative
+            # paths are served by this server, so prefix the public base.
+            full_url = photo_url if photo_url.startswith("http") else f"{PUBLIC_BASE_URL}{photo_url}"
             resp = await client.post(
                 f"{TELEGRAM_API}/sendPhoto",
                 json={

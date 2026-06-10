@@ -31,6 +31,12 @@ os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
+# Supabase Storage — durable photo hosting (Railway's disk is ephemeral).
+# When unset, photos fall back to the local photos/ directory.
+SUPABASE_URL         = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
+STORAGE_BUCKET       = "photos"
+
 SERVER_START_TIME = time.time()
 
 # ── Database ─────────────────────────────────────────────────
@@ -182,12 +188,34 @@ async def create_visit(
 
     photo_url = None
     if photo:
-        filename  = f"visit_{ts.replace(':','-').replace('+','_')}.jpg"
-        filepath  = os.path.join(PHOTOS_DIR, filename)
-        content   = await photo.read()
-        with open(filepath, "wb") as f:
-            f.write(content)
-        photo_url = f"/photos/{filename}"
+        filename = f"visit_{ts.replace(':','-').replace('+','_')}.jpg"
+        content  = await photo.read()
+
+        if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+            # Durable storage: upload to Supabase Storage bucket
+            import httpx
+            async with httpx.AsyncClient() as client:
+                r = await client.post(
+                    f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{filename}",
+                    headers={
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                        "Content-Type":  "image/jpeg",
+                        "x-upsert":      "true",
+                    },
+                    content=content,
+                    timeout=20,
+                )
+            if r.status_code in (200, 201):
+                photo_url = f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{filename}"
+            else:
+                print(f"[Storage] Supabase upload failed ({r.status_code}): {r.text[:200]}")
+
+        if photo_url is None:
+            # Fallback: local disk (ephemeral on Railway)
+            filepath = os.path.join(PHOTOS_DIR, filename)
+            with open(filepath, "wb") as f:
+                f.write(content)
+            photo_url = f"/photos/{filename}"
 
     row = db_fetchone(
         """INSERT INTO visits (trigger, timestamp, photo_url, silent)
