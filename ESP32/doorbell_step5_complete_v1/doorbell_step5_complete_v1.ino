@@ -35,6 +35,12 @@ const char* BACKEND_URL   = "https://smart-doorbell-production.up.railway.app";
 #define BUTTON_PIN  13   // External tactile button (INPUT_PULLUP)
 #define FLASH_LED    4   // Built-in white flash LED
 
+// Demo mode while the physical button is not yet wired:
+// fire ONE doorbell event automatically after boot, so pressing
+// the carrier's RESET button acts as the doorbell.
+// Set to false once the real button is soldered to GPIO 13.
+#define TRIGGER_ON_BOOT  true
+
 unsigned long lastDebounceTime  = 0;
 int           lastButtonState   = HIGH;
 
@@ -101,7 +107,14 @@ void setup() {
 
   // Ready signal — 3 quick flashes
   blinkFlash(3);
-  Serial.println("[OK] Doorbell ready. Press BOOT button to trigger.");
+
+#if TRIGGER_ON_BOOT
+  // Demo mode: RESET button = doorbell. One event per boot.
+  Serial.println("[DEMO] TRIGGER_ON_BOOT active — firing doorbell now.");
+  triggerDoorbell();
+#endif
+
+  Serial.println("[OK] Doorbell ready. Press the GPIO 13 button to trigger.");
 }
 
 // ─────────────────────────────────────────────────────────────
