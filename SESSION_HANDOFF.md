@@ -29,6 +29,7 @@ ESP32 ──→ Railway (FastAPI) ──→ Supabase (Postgres, Tokyo region)
 | Piece | Where | Status |
 |-------|-------|--------|
 | Backend API | https://smart-doorbell-production.up.railway.app | ✅ live |
+| **Live dashboard** | https://smart-doorbell-production.up.railway.app (root URL) | ✅ served by FastAPI, works from any device |
 | Database | Supabase project "Smart-Doorbell" (`aws-1-ap-northeast-1`, transaction pooler port 6543) | ✅ live, RLS enabled |
 | Telegram webhook | registered to `<railway-url>/telegram/webhook` | ✅ verified round-trip |
 | ngrok | — | 🗑️ no longer needed, ever |
@@ -90,19 +91,23 @@ ESP32 ──→ Railway (FastAPI) ──→ Supabase (Postgres, Tokyo region)
 
 ---
 
-## Step 5 Sketch — Current State
+## Step 5 Sketch — Current State (FULLY TESTED on hardware 2026-06-10)
 
 - Credentials come from `secrets.h` (`#include`) — already filled locally, upload-ready
-- `BACKEND_URL = "https://smart-doorbell-production.up.railway.app"` — already set
+- `BACKEND_URL = "https://smart-doorbell-production.up.railway.app"` — set
+- **`TRIGGER_ON_BOOT true`** — demo mode: pressing the carrier's RESET button fires one doorbell event (works around the unwired GPIO 13 button). Set to `false` after soldering the real button.
+- **Single notification path:** ESP32 uploads the photo (multipart) to `/api/visits`; the BACKEND sends the one Telegram message with photo + working reply buttons. Direct ESP32→Telegram send remains only as fallback when `BACKEND_URL` is empty.
+- Camera output flipped 180° in software (`set_vflip` + `set_hmirror`) — module sits rotated in the CS-CAM carrier
 - `BUTTON_PIN 13`, debounce + 3 s min gap, GPIO 0 conflict fixed (GPIO 0 = camera XCLK, unusable)
 - Arduino IDE: board **AI Thinker ESP32-CAM**, port **COM3**, Serial 115200
+
+**Verified on real hardware:** RESET press → photo captured → uploaded to Railway (201) → one Telegram photo message → reply tapped → caption edited + response in Supabase + live dashboard update.
 
 ## IMMEDIATE NEXT STEP (at the lab)
 
 1. Solder button to IO13 + GND (diagonal legs)
-2. Upload Step 5 → Serial Monitor → wait 3 flashes
-3. Press button → photo in Telegram **and** visit appears in dashboard via Railway/Supabase
-4. Tap reply button → response shows in dashboard (already proven from cloud side)
+2. Set `TRIGGER_ON_BOOT` to `false`, re-upload
+3. Press the real button → same verified flow
 
 ---
 
@@ -130,6 +135,8 @@ No ngrok. Webhook is permanently registered to Railway.
 | 3 | Telegram "remove buttons after reply" uses `editMessageCaption` — fails silently on **text-only** messages (no photo). Photo messages fine. | Low priority |
 | 4 | Settings page UI only — not wired to backend | Deferred to V2 |
 | 5 | Railway trial credit ($5 / 30 days) — check usage before demo day | Watch |
+| 6 | Photos stored on Railway's ephemeral disk — dashboard photo links break after each redeploy (Telegram copies unaffected) | Fix: Supabase Storage |
+| 7 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page shows stale data | Planned next |
 
 ---
 
@@ -146,3 +153,4 @@ No ngrok. Webhook is permanently registered to Railway.
 
 - **2026-06-08:** GPIO 0/XCLK conflict fixed; wiring attempt blocked by connector type
 - **2026-06-10:** Connector mystery solved (solder pads); HW report submitted; secrets redacted from repo; **full cloud migration: Supabase Postgres + Railway deploy + permanent Telegram webhook, verified end-to-end**; ESP32 sketch pointed at cloud; test data cleaned (visit 5 kept as proof)
+- **2026-06-10 (later):** `TRIGGER_ON_BOOT` demo mode added (RESET = doorbell); duplicate-notification bug fixed (ESP32 now uploads photo to backend, backend sends the single Telegram message); camera output flipped 180°; **dashboard served from Railway root URL** with same-origin API/WS; **entire V1 flow verified on real hardware including photo, reply round-trip, and live dashboard update**
