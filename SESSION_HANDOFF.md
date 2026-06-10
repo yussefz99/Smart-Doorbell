@@ -130,13 +130,15 @@ No ngrok. Webhook is permanently registered to Railway.
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | Old bot token in git history | ⏳ revoke later (user deferred) |
+| 1 | Old bot token in git history | ✅ **Revoked 2026-06-10** — history copy is dead. New token in `.env`, Railway, `secrets.h`. ESP32 flash still has old token (harmless — only the no-backend fallback path uses it); refresh on next upload |
 | 2 | Button not wired | ⏳ solder at lab — IO13 + GND pads |
 | 3 | Telegram "remove buttons after reply" uses `editMessageCaption` — fails silently on **text-only** messages (no photo). Photo messages fine. | Low priority |
 | 4 | Settings page UI only — not wired to backend | Deferred to V2 |
 | 5 | Railway trial credit ($5 / 30 days) — check usage before demo day | Watch |
-| 6 | Photos stored on Railway's ephemeral disk — dashboard photo links break after each redeploy (Telegram copies unaffected) | Fix: Supabase Storage |
+| 6 | Photos stored on Railway's ephemeral disk | ✅ **Fixed 2026-06-10** — photos upload to Supabase Storage (public `photos` bucket, `apikey` header with `sb_secret_` key); visit stores permanent public URL; verified live |
 | 7 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page shows stale data | Planned next |
+
+**Supabase Storage env vars** (in `backend/.env` + Railway): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
 
 ---
 
