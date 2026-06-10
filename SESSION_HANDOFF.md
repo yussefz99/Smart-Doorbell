@@ -136,7 +136,7 @@ No ngrok. Webhook is permanently registered to Railway.
 | 4 | Settings page UI only — not wired to backend | Deferred to V2 |
 | 5 | Railway trial credit ($5 / 30 days) — check usage before demo day | Watch |
 | 6 | Photos stored on Railway's ephemeral disk | ✅ **Fixed 2026-06-10** — photos upload to Supabase Storage (public `photos` bucket, `apikey` header with `sb_secret_` key); visit stores permanent public URL; verified live |
-| 7 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page shows stale data | Planned next |
+| 7 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page shows stale data | ✅ **Fixed 2026-06-10** — sketch sends heartbeat every 60 s with real RSSI; backend computes `online` (<150 s); dashboard shows 🟢 Online / 🔴 Offline, auto-refreshes; verified on hardware |
 
 **Supabase Storage env vars** (in `backend/.env` + Railway): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
 
@@ -156,4 +156,4 @@ No ngrok. Webhook is permanently registered to Railway.
 - **2026-06-08:** GPIO 0/XCLK conflict fixed; wiring attempt blocked by connector type
 - **2026-06-10:** Connector mystery solved (solder pads); HW report submitted; secrets redacted from repo; **full cloud migration: Supabase Postgres + Railway deploy + permanent Telegram webhook, verified end-to-end**; ESP32 sketch pointed at cloud; test data cleaned (visit 5 kept as proof)
 - **2026-06-10 (later):** `TRIGGER_ON_BOOT` demo mode added (RESET = doorbell); duplicate-notification bug fixed (ESP32 now uploads photo to backend, backend sends the single Telegram message); camera output flipped 180°; **dashboard served from Railway root URL** with same-origin API/WS; **entire V1 flow verified on real hardware including photo, reply round-trip, and live dashboard update**
-- **2026-06-10 (evening):** bot token revoked + rotated everywhere; photos moved to **Supabase Storage** (durable, public URLs); dashboard: thumbnails enlarged + **click-to-enlarge lightbox**; **password gate** added (`DASHBOARD_PASSWORD` env var, X-Dashboard-Key header, lock screen once per device, ESP32/webhook endpoints stay open) — all verified live
+- **2026-06-10 (evening):** bot token revoked + rotated everywhere; photos moved to **Supabase Storage** (durable, public URLs); dashboard: thumbnails enlarged + **click-to-enlarge lightbox**; **password gate** added (`DASHBOARD_PASSWORD` env var, X-Dashboard-Key header, lock screen once per device, ESP32/webhook endpoints stay open); **device heartbeat** shipped (60 s RSSI reports → real Online/Offline badge in Diagnostics) — all verified live on hardware
