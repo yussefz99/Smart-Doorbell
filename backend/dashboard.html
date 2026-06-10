@@ -277,6 +277,49 @@ tbody tr:hover { background: var(--surface2); }
 }
 .lightbox .lb-close:hover { opacity: 1; }
 
+/* ── Password lock screen ───────────────────────────────── */
+.lock-screen {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg, #0f1115);
+  z-index: 1100;
+  align-items: center; justify-content: center;
+}
+.lock-screen.open { display: flex; }
+.lock-card {
+  background: var(--surface, #181b22);
+  border: 1px solid var(--border, #2a2e38);
+  border-radius: 12px;
+  padding: 36px 32px;
+  width: 320px;
+  text-align: center;
+}
+.lock-card .lock-icon { font-size: 40px; margin-bottom: 8px; }
+.lock-card h2 { margin: 0 0 4px; font-size: 18px; color: var(--text, #e8eaf0); }
+.lock-card p  { margin: 0 0 18px; font-size: 13px; color: var(--text-dim, #8b93a5); }
+.lock-card input {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2e38);
+  background: var(--surface2, #20242e);
+  color: var(--text, #e8eaf0);
+  font-size: 14px;
+  margin-bottom: 12px;
+  outline: none;
+}
+.lock-card input:focus { border-color: var(--accent, #4f8cff); }
+.lock-card button {
+  width: 100%;
+  padding: 10px;
+  border: none; border-radius: 8px;
+  background: var(--accent, #4f8cff);
+  color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer;
+}
+.lock-card button:hover { filter: brightness(1.1); }
+.lock-error { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 17px; }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -746,6 +789,17 @@ select.setting-select {
   <img id="lightbox-img" src="" alt="visit photo">
 </div>
 
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-card">
+    <div class="lock-icon">🔔</div>
+    <h2>Smart Doorbell</h2>
+    <p>Enter the dashboard password</p>
+    <input type="password" id="lock-input" placeholder="Password" autocomplete="current-password">
+    <button onclick="submitKey()">Unlock</button>
+    <div class="lock-error" id="lock-error"></div>
+  </div>
+</div>
+
 <script>
 // ── Config ────────────────────────────────────────────────
 // Served over HTTP (Railway or local uvicorn): use the same origin.
@@ -755,6 +809,46 @@ const API = SAME_ORIGIN ? '' : 'http://localhost:8001';
 const WS  = SAME_ORIGIN
   ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'
   : 'ws://localhost:8001/ws';
+
+// ── Dashboard password ────────────────────────────────────
+let DASH_KEY = localStorage.getItem('dash_key') || '';
+
+function authHeaders() {
+  return { 'X-Dashboard-Key': DASH_KEY };
+}
+
+async function verifyKey(key) {
+  try {
+    const r = await fetch(API + '/api/auth/check', { headers: { 'X-Dashboard-Key': key } });
+    return r.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+function showLock() {
+  document.getElementById('lock-screen').classList.add('open');
+  document.getElementById('lock-input').focus();
+}
+function hideLock() {
+  document.getElementById('lock-screen').classList.remove('open');
+}
+
+async function submitKey() {
+  const input = document.getElementById('lock-input');
+  const err   = document.getElementById('lock-error');
+  const key   = input.value.trim();
+  err.textContent = '';
+  if (await verifyKey(key)) {
+    DASH_KEY = key;
+    localStorage.setItem('dash_key', key);
+    hideLock();
+    startApp();
+  } else {
+    err.textContent = 'Wrong password — try again';
+    input.select();
+  }
+}
 
 // ── Photo lightbox ────────────────────────────────────────
 function openLightbox(src) {
@@ -801,7 +895,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 
 // ── WebSocket ─────────────────────────────────────────────
 function connectWS() {
-  const ws = new WebSocket(WS);
+  const ws = new WebSocket(WS + (DASH_KEY ? '?key=' + encodeURIComponent(DASH_KEY) : ''));
   ws.onopen  = () => setConn(true);
   ws.onclose = () => { setConn(false); setTimeout(connectWS, 3000); };
   ws.onerror = () => ws.close();
@@ -831,7 +925,8 @@ function setConn(online) {
 
 // ── Fetch helpers ─────────────────────────────────────────
 async function fetchJSON(path) {
-  const r = await fetch(API + path);
+  const r = await fetch(API + path, { headers: authHeaders() });
+  if (r.status === 401) { showLock(); throw new Error(401); }
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
@@ -839,7 +934,7 @@ async function fetchJSON(path) {
 async function patchTag(id, tag) {
   await fetch(`${API}/api/visits/${id}/tag`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ tag })
   });
 }
@@ -1181,13 +1276,29 @@ function checkBotStatus() {
 }
 
 // ── Init ──────────────────────────────────────────────────
-(async () => {
+let appStarted = false;
+async function startApp() {
+  if (appStarted) return;
+  appStarted = true;
   connectWS();
   await loadVisits();
   checkBotStatus();
   addLog('ok', 'Dashboard loaded');
   // Poll every 30s as fallback if WebSocket drops
   setInterval(loadVisits, 30000);
+}
+
+(async () => {
+  // Enter key submits the password
+  document.getElementById('lock-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitKey();
+  });
+
+  if (await verifyKey(DASH_KEY)) {
+    startApp();
+  } else {
+    showLock();
+  }
 })();
 </script>
 </body>

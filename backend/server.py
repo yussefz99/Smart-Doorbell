@@ -13,7 +13,7 @@ from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
@@ -36,6 +36,16 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 SUPABASE_URL         = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 STORAGE_BUCKET       = "photos"
+
+# Dashboard access password. Protects the READ endpoints the dashboard
+# uses; device endpoints (visit POST, heartbeat) and the Telegram
+# webhook stay open so the doorbell keeps working.
+# Empty value = gate disabled (e.g. local development).
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
+
+def require_dashboard_key(x_dashboard_key: str = Header(default="")):
+    if DASHBOARD_PASSWORD and x_dashboard_key != DASHBOARD_PASSWORD:
+        raise HTTPException(401, "Invalid dashboard password")
 
 SERVER_START_TIME = time.time()
 
@@ -166,8 +176,14 @@ def dashboard():
     return FileResponse(os.path.join(BASE_DIR, "dashboard.html"))
 
 
+# GET /api/auth/check — dashboard verifies its stored password
+@app.get("/api/auth/check", dependencies=[Depends(require_dashboard_key)])
+def auth_check():
+    return {"ok": True}
+
+
 # GET /api/visits — all visits, newest first
-@app.get("/api/visits")
+@app.get("/api/visits", dependencies=[Depends(require_dashboard_key)])
 def get_visits():
     rows = db_fetchall("SELECT * FROM visits ORDER BY timestamp DESC")
     return [row_to_visit(r) for r in rows]
@@ -249,7 +265,7 @@ async def create_visit(
 
 
 # PATCH /api/visits/:id/tag — dashboard sets a tag
-@app.patch("/api/visits/{visit_id}/tag")
+@app.patch("/api/visits/{visit_id}/tag", dependencies=[Depends(require_dashboard_key)])
 def update_tag(visit_id: int, body: TagUpdate):
     if body.tag not in ("Expected", "Unknown", "Suspicious"):
         raise HTTPException(400, "tag must be Expected, Unknown, or Suspicious")
@@ -264,7 +280,7 @@ def update_tag(visit_id: int, body: TagUpdate):
 
 
 # GET /api/stats — visits per day + busiest hours
-@app.get("/api/stats")
+@app.get("/api/stats", dependencies=[Depends(require_dashboard_key)])
 def get_stats():
     # Visits per day for the last 7 days
     per_day = db_fetchall("""
@@ -316,7 +332,7 @@ def get_stats():
 
 
 # GET /api/device/status — uptime, WiFi signal, last sync
-@app.get("/api/device/status")
+@app.get("/api/device/status", dependencies=[Depends(require_dashboard_key)])
 def get_device_status():
     row = db_fetchone("SELECT * FROM device_status WHERE id=1")
 
@@ -342,8 +358,12 @@ def device_heartbeat(body: DeviceHeartbeat):
 
 
 # WebSocket /ws — dashboard connects here for live push
+# Browsers can't set headers on WebSockets, so the key rides in ?key=
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    if DASHBOARD_PASSWORD and ws.query_params.get("key", "") != DASHBOARD_PASSWORD:
+        await ws.close(code=1008)
+        return
     await manager.connect(ws)
     try:
         while True:
@@ -416,7 +436,7 @@ async def telegram_webhook(request: Request):
 
 # ── Register / check webhook ──────────────────────────────────
 
-@app.post("/admin/set-webhook")
+@app.post("/admin/set-webhook", dependencies=[Depends(require_dashboard_key)])
 async def set_webhook(request: Request):
     """
     Call this once after deploying (or starting ngrok).
@@ -430,6 +450,6 @@ async def set_webhook(request: Request):
     return result
 
 
-@app.get("/admin/webhook-info")
+@app.get("/admin/webhook-info", dependencies=[Depends(require_dashboard_key)])
 async def webhook_info():
     return await tg.get_webhook_info()
