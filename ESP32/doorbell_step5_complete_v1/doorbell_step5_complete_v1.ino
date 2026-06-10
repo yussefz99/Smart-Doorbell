@@ -13,17 +13,18 @@
 #include <WiFiClientSecure.h>
 
 // ── Credentials ──────────────────────────────────────────────
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* BOT_TOKEN     = "YOUR_BOT_TOKEN_HERE";
-const char* CHAT_ID       = "YOUR_CHAT_ID";
-const char* BACKEND_URL   = "";  // leave empty for now
+// Real values live in secrets.h (gitignored — never committed).
+#include "secrets.h"
+const char* WIFI_SSID     = SECRET_WIFI_SSID;
+const char* WIFI_PASSWORD = SECRET_WIFI_PASSWORD;
+const char* BOT_TOKEN     = SECRET_BOT_TOKEN;
+const char* CHAT_ID       = SECRET_CHAT_ID;
 
 // ── Backend server URL ────────────────────────────────────────
-// Change this to your ngrok URL when backend is running
-// Example: "https://abc123.ngrok-free.app"
-// Leave empty to skip backend posting (Telegram only)
+// Permanent cloud deployment (Railway + Supabase) — no ngrok.
+// Leave empty to skip backend posting (Telegram only).
 // ─────────────────────────────────────────────────────────────
+const char* BACKEND_URL   = "https://smart-doorbell-production.up.railway.app";
 
 // ── Pin definitions ───────────────────────────────────────────
 // IMPORTANT: GPIO 0 = camera XCLK — it is driven as a 20 MHz
