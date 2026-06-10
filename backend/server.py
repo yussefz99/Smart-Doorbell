@@ -192,8 +192,13 @@ async def create_visit(
     visit = row_to_visit(row)
     visit_id = visit["id"]
 
-    # Send Telegram notification with reply buttons
-    msg_id = await tg.send_visit_notification(visit)
+    # Send Telegram notification with reply buttons.
+    # A Telegram failure must not lose the visit — it is already saved.
+    try:
+        msg_id = await tg.send_visit_notification(visit)
+    except Exception as e:
+        print(f"[Telegram] notification failed: {e!r}")
+        msg_id = None
     if msg_id:
         db_execute(
             "UPDATE visits SET telegram_message_id=%s WHERE id=%s",

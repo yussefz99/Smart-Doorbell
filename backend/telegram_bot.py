@@ -11,8 +11,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
-CHAT_ID   = os.getenv("CHAT_ID",   "")
+# strip() guards against stray whitespace/newlines/quotes pasted into
+# hosting dashboards (e.g. Railway) — they break the Telegram URL
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip().strip('"').strip("'")
+CHAT_ID   = os.getenv("CHAT_ID",   "").strip().strip('"').strip("'")
+
+if not BOT_TOKEN:
+    print("[Telegram] WARNING: BOT_TOKEN is empty — notifications disabled")
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
