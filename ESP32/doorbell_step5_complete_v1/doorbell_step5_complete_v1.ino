@@ -73,7 +73,7 @@ bool initCamera();
 camera_fb_t* capturePhoto();
 bool sendPhotoToTelegram(camera_fb_t* fb);
 void sendTextNotification(const String& message);
-void postVisitToBackend();
+bool postVisitToBackend(camera_fb_t* fb);
 void triggerDoorbell();
 void blinkFlash(int times);
 void setFlash(bool on);
@@ -165,22 +165,26 @@ void triggerDoorbell() {
   }
   Serial.println("[OK] Photo captured: " + String(fb->len) + " bytes.");
 
-  // Step 3 — Send photo to Telegram
-  Serial.println("[Telegram] Sending photo...");
-  bool ok = sendPhotoToTelegram(fb);
+  // Step 3 — Deliver the visit.
+  // Backend configured → upload photo to backend; the BACKEND sends
+  // the single Telegram notification (photo + working reply buttons).
+  // No backend → fall back to sending the photo to Telegram directly.
+  bool ok;
+  if (strlen(BACKEND_URL) > 0) {
+    Serial.println("[Backend] Uploading visit + photo...");
+    ok = postVisitToBackend(fb);
+  } else {
+    Serial.println("[Telegram] Sending photo directly...");
+    ok = sendPhotoToTelegram(fb);
+  }
   esp_camera_fb_return(fb);
 
   if (ok) {
-    Serial.println("[OK] Photo sent to Telegram.");
+    Serial.println("[OK] Visit delivered.");
     blinkFlash(3);
   } else {
-    Serial.println("[ERROR] Telegram send failed.");
+    Serial.println("[ERROR] Delivery failed.");
     blinkFlash(6);
-  }
-
-  // Step 4 — Post visit to backend (if configured)
-  if (strlen(BACKEND_URL) > 0) {
-    postVisitToBackend();
   }
 
   Serial.println("[OK] Done. Waiting for next press...\n");
@@ -327,11 +331,13 @@ void sendTextNotification(const String& message) {
   client.stop();
 }
 
-// ── Post visit to backend ─────────────────────────────────────
-void postVisitToBackend() {
+// ── Post visit + photo to backend ─────────────────────────────
+// The backend saves the photo, stores the visit in the database,
+// and sends the single Telegram notification with reply buttons.
+bool postVisitToBackend(camera_fb_t* fb) {
   WiFiClientSecure client;
   client.setInsecure();
-  client.setTimeout(10);
+  client.setTimeout(30);
 
   // Extract host from BACKEND_URL
   String url    = String(BACKEND_URL);
@@ -343,25 +349,49 @@ void postVisitToBackend() {
 
   if (!client.connect(host.c_str(), 443)) {
     Serial.println("[Backend] Connection failed.");
-    return;
+    return false;
   }
 
-  String body = "trigger=button";
+  String boundary = "----SmartDoorbell";
+
+  String bodyStart =
+    "--" + boundary + "\r\n"
+    "Content-Disposition: form-data; name=\"trigger\"\r\n\r\n"
+    "button\r\n"
+    "--" + boundary + "\r\n"
+    "Content-Disposition: form-data; name=\"photo\"; filename=\"doorbell.jpg\"\r\n"
+    "Content-Type: image/jpeg\r\n\r\n";
+
+  String bodyEnd = "\r\n--" + boundary + "--\r\n";
+  int totalLen   = bodyStart.length() + fb->len + bodyEnd.length();
+
   client.println("POST /api/visits HTTP/1.1");
   client.println("Host: " + host);
-  client.println("Content-Type: application/x-www-form-urlencoded");
-  client.println("Content-Length: " + String(body.length()));
+  client.println("Content-Type: multipart/form-data; boundary=" + boundary);
+  client.println("Content-Length: " + String(totalLen));
   client.println("Connection: close");
   client.println();
-  client.print(body);
+  client.print(bodyStart);
+
+  uint8_t* buf  = fb->buf;
+  size_t   len  = fb->len;
+  size_t   chunk = 1024;
+  while (len > 0) {
+    size_t toSend = min(len, chunk);
+    client.write(buf, toSend);
+    buf += toSend;
+    len -= toSend;
+  }
+  client.print(bodyEnd);
 
   unsigned long timeout = millis();
   while (client.available() == 0) {
-    if (millis() - timeout > 8000) { client.stop(); return; }
+    if (millis() - timeout > 20000) { client.stop(); return false; }
   }
-  String resp = client.readStringUntil('\n');
-  Serial.println("[Backend] Response: " + resp);
+  String statusLine = client.readStringUntil('\n');
+  Serial.println("[Backend] Response: " + statusLine);
   client.stop();
+  return statusLine.indexOf("201") > 0;
 }
 
 // ── Flash LED helpers ─────────────────────────────────────────

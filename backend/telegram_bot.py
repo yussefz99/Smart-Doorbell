@@ -21,6 +21,13 @@ if not BOT_TOKEN:
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
+# Public base URL of this server — Telegram fetches photos from here,
+# so it must be reachable from the internet (not localhost).
+PUBLIC_BASE_URL = (
+    os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    or "https://smart-doorbell-production.up.railway.app"
+)
+
 
 # ── Send photo + reply buttons ────────────────────────────────
 async def send_visit_notification(visit: dict) -> int | None:
@@ -52,8 +59,8 @@ async def send_visit_notification(visit: dict) -> int | None:
 
     async with httpx.AsyncClient() as client:
         if photo_url:
-            # Send actual photo from our server
-            full_url = f"http://localhost:8000{photo_url}"
+            # Send actual photo from our server (must be publicly reachable)
+            full_url = f"{PUBLIC_BASE_URL}{photo_url}"
             resp = await client.post(
                 f"{TELEGRAM_API}/sendPhoto",
                 json={
