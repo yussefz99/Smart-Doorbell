@@ -1,6 +1,6 @@
 # Smart Doorbell – Group 15
 ## Session Handoff Document
-**Date:** 2026-06-08  
+**Date:** 2026-06-10
 **Purpose:** Full context for continuing in a new session
 
 ---
@@ -10,41 +10,49 @@
 An IoT smart doorbell built on the ESP32-CAM (AI Thinker). When a visitor presses a button:
 1. ESP32-CAM captures a photo
 2. Sends a Telegram notification with the photo and two reply buttons (✅ On my way / 🏠 Not home)
-3. Visit is saved to backend database
+3. Visit is saved to the cloud backend database
 4. Dashboard updates live via WebSocket
 
-**Stack:** Arduino C++ (firmware) · Python FastAPI + SQLite (backend) · Vanilla JS (dashboard) · Telegram Bot API
+**Stack:** Arduino C++ (firmware) · Python FastAPI on **Railway** + **Supabase PostgreSQL** (backend) · Vanilla JS (dashboard) · Telegram Bot API
 
 ---
 
-## Hardware
+## ☁️ Cloud Architecture (NEW — replaced SQLite + ngrok)
 
-| Component | Details |
-|-----------|---------|
-| ESP32-CAM | AI Thinker module with OV2640 camera |
-| CS-CAM carrier board | by see-sys.co.il — has built-in CH9102 USB-Serial chip, B (Boot) + R (Reset) buttons |
-| Tactile button | External push button on breadboard |
-| Breadboard | Button placed rows 9–12 |
-| USB cable | Mini USB → laptop for programming and power |
+```
+ESP32 ──→ Railway (FastAPI) ──→ Supabase (Postgres, Tokyo region)
+                │
+                ├──→ Telegram (notifications + reply webhook)
+                └──→ Dashboard (WebSocket live updates)
+```
 
-**CS-CAM carrier board pin layout (right side, top to bottom):**
-```
-VIN
-GND   ← connect button GND wire here
-D13   ← connect button signal wire here
-D12
-D4
-D27
-D26
-D25
-D33
-D32
-D35
-D34
-UN
-UP
-EN
-```
+| Piece | Where | Status |
+|-------|-------|--------|
+| Backend API | https://smart-doorbell-production.up.railway.app | ✅ live |
+| Database | Supabase project "Smart-Doorbell" (`aws-1-ap-northeast-1`, transaction pooler port 6543) | ✅ live, RLS enabled |
+| Telegram webhook | registered to `<railway-url>/telegram/webhook` | ✅ verified round-trip |
+| ngrok | — | 🗑️ no longer needed, ever |
+
+**Verified end-to-end on 2026-06-10:** visit posted from cloud → Telegram notification received → "✅ On my way" tapped → response stored in Supabase (visit id 5) → readable via public API.
+
+**Railway setup notes:**
+- Deploys automatically on every push to `main` (GitHub repo `yussefz99/Smart-Doorbell`)
+- Service **Root Directory = `/backend`** (required — repo root has no Python app)
+- Variables set in Railway: `BOT_TOKEN`, `CHAT_ID`, `DATABASE_URL`
+- Settings changes are **staged** — must click the purple "Apply changes/Deploy" banner
+- `psycopg2-binary` must be **≥2.9.10** (2.9.9 has no Python 3.13 wheels → `libpq.so.5` ImportError)
+
+---
+
+## 🔑 Credentials — where they live (never in git)
+
+| Secret | Local | Cloud |
+|--------|-------|-------|
+| `BOT_TOKEN`, `CHAT_ID` | `backend/.env` | Railway → Variables |
+| `DATABASE_URL` (Supabase pooler string) | `backend/.env` | Railway → Variables |
+| WiFi + bot creds for firmware | `ESP32/doorbell_step5_complete_v1/secrets.h` (gitignored; template: `secrets.h.example`) | — |
+
+⚠️ **Deferred task:** the old bot token leaked in git history (commit `e212e4f`). User chose to keep it for now — **revoke via @BotFather later**, then update: `backend/.env`, Railway `BOT_TOKEN` variable, `secrets.h`, and re-check webhook.
 
 ---
 
@@ -52,143 +60,64 @@ EN
 
 | File | Path |
 |------|------|
-| Step 5 firmware (main) | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\ESP32\doorbell_step5_complete_v1\doorbell_step5_complete_v1.ino` |
-| Step 2 (WiFi+Telegram text) | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\ESP32\doorbell_step2_wifi_telegram\doorbell_step2_wifi_telegram.ino` |
-| Step 3 (camera test) | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\ESP32\doorbell_step3_camera_test\doorbell_step3_camera_test.ino` |
-| Step 4 (photo to Telegram) | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\ESP32\doorbell_step4_photo_telegram\doorbell_step4_photo_telegram.ino` |
-| Backend server | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend\server.py` |
-| Telegram bot helper | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend\telegram_bot.py` |
-| Dashboard | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend\dashboard.html` |
-| Credentials (secret) | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend\.env` |
-| Requirements | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend\requirements.txt` |
-| Progress log | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\PROGRESS.md` |
-| Plan checklist | `C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\PLAN.md` |
+| Step 5 firmware (main) | `ESP32/doorbell_step5_complete_v1/doorbell_step5_complete_v1.ino` |
+| Firmware secrets | `ESP32/doorbell_step5_complete_v1/secrets.h` (gitignored) |
+| Backend server (Postgres) | `backend/server.py` |
+| Telegram bot helper | `backend/telegram_bot.py` |
+| Dashboard | `backend/dashboard.html` |
+| Local secrets | `backend/.env` (gitignored) |
+| Railway start command | `backend/Procfile` |
+| HW unit tests report (submitted 9/6) | `C:\Users\yusse\Downloads\HARDWARE UNIT TESTS REPORT - Smart Doorbell - Group 15.docx` |
 
 ---
 
-## Credentials (already filled in sketch and .env)
+## Hardware State
 
-```
-WiFi SSID:     YOUR_WIFI_SSID
-WiFi Password: YOUR_WIFI_PASSWORD
-BOT_TOKEN:     YOUR_BOT_TOKEN_HERE
-CHAT_ID:       YOUR_CHAT_ID
-```
+### Working (tested)
+- Camera (QVGA JPEG ~6 KB), WiFi + Telegram text, photo upload to Telegram, flash LED (GPIO 4)
 
----
+### ⏳ THE ONE BLOCKER: button not yet connected
+- Button must connect **GPIO 13 (IO13) + GND**
+- CS-CAM carrier exposes only **bare solder pads** (module pins soldered face-down; female jumpers can't grip, holes are filled) → **soldering required**
+- User has soldering iron access at university lab
+- **Plan:** solder two wires onto the IO13 and GND pads → other ends to **two diagonal legs** of the 6×6 mm tactile button (same-side legs are internally connected!)
+- Quick pre-check at lab: with sketch running, briefly short IO13 pad to GND pad with a wire — photo should hit Telegram
 
-## What Was Completed Before This Session
-
-### Firmware steps (all tested on real hardware ✅)
-- **Step 2** — WiFi connects, sends Telegram text message → working
-- **Step 3** — Camera initializes, captures photo (5999 bytes QVGA JPEG) → working
-- **Step 4** — Captures photo, sends to Telegram via multipart/form-data → working
-
-### Backend (running, fully tested ✅)
-- FastAPI + SQLite on port 8001
-- Endpoints: GET/POST `/api/visits`, PATCH `/api/visits/:id/tag`, GET `/api/stats`, GET `/api/device/status`, POST `/api/device/heartbeat`, POST `/telegram/webhook`, POST `/admin/set-webhook`, WS `/ws`
-- Telegram webhook working via ngrok
-- Reply buttons (✅ On my way / 🏠 Not home) sent with every notification
-- Dashboard Response column updates live when homeowner replies
-
-### Dashboard (working ✅)
-- 4 pages: Visit History, Statistics, Diagnostics, Settings
-- Dark theme, WebSocket live updates, en-GB date formatting
+### Missing hardware (requested via WhatsApp group, Hebrew message sent)
+1. **PIR motion sensor** — team OK to drop the motion feature if hard to get
+2. **MAX98357A I²S amp + speaker** — voice/sound to visitor
+3. **0.96″ OLED 128×64 SSD1306, I²C** — chosen from catalog (2 pins only; ESP32-CAM is pin-starved) — to display homeowner's reply to the visitor
 
 ---
 
-## This Session — What Was Done
+## Step 5 Sketch — Current State
 
-### 1. GPIO 0 / Camera XCLK Conflict — FIXED
+- Credentials come from `secrets.h` (`#include`) — already filled locally, upload-ready
+- `BACKEND_URL = "https://smart-doorbell-production.up.railway.app"` — already set
+- `BUTTON_PIN 13`, debounce + 3 s min gap, GPIO 0 conflict fixed (GPIO 0 = camera XCLK, unusable)
+- Arduino IDE: board **AI Thinker ESP32-CAM**, port **COM3**, Serial 115200
 
-**Problem:** Step 5 sketch was taking continuous photos by itself.
+## IMMEDIATE NEXT STEP (at the lab)
 
-**Root cause:** GPIO 0 is used by both the BOOT button AND the camera's XCLK pin.
-After `esp_camera_init()`, the ESP32's LEDC peripheral takes over GPIO 0 and drives it as a 20 MHz clock to the OV2640 sensor. `digitalRead(0)` after that point reads the clock oscillation, not a button press — this is why it triggered continuously.
-
-**Fix applied to `doorbell_step5_complete_v1.ino`:**
-- Changed `#define BUTTON_PIN` from `0` to `13`
-- GPIO 13 is free on AI Thinker ESP32-CAM — not used by the camera at all
-- Rewrote `loop()` with proper state-change debounce logic
-- Added all missing forward declarations
-- Removed the broken `volatile bool doorbellTriggered` approach
-- Updated comments to explain the GPIO 0 constraint
-
-**Current state of Step 5 sketch:** Code is correct and ready to upload. External button must be wired to GPIO 13.
-
-### 2. Wiring Attempt — IN PROGRESS
-
-**Goal:** Wire external tactile button to GPIO 13 on the CS-CAM carrier board.
-
-**What was tried:**
-- Button placed on breadboard rows 9–12
-- Two wires (black = GND, orange/red = signal) connected
-- Discovered the wires were connected to the spare/loose board, not the active CS-CAM board
-
-**Connector type problem:**
-- The active CS-CAM carrier board's pin connections are NOT standard female sockets that accept female jumper wire ends
-- User has: male-to-male wires and female-to-female wires
-- The correct connection method is still unclear — need a close-up photo of the CS-CAM pin area
+1. Solder button to IO13 + GND (diagonal legs)
+2. Upload Step 5 → Serial Monitor → wait 3 flashes
+3. Press button → photo in Telegram **and** visit appears in dashboard via Railway/Supabase
+4. Tap reply button → response shows in dashboard (already proven from cloud side)
 
 ---
 
-## IMMEDIATE NEXT STEP (start here in new session)
-
-**The wiring is not yet complete.** Here is exactly what needs to happen:
-
-1. **Take a close-up photo of the CS-CAM carrier board pin area** (right side, where D13 and GND labels are) — need to see the exact connector type to know how to connect wires
-2. **Wire the external button to GPIO 13 and GND** using whichever method fits the connector
-3. **Upload `doorbell_step5_complete_v1.ino`** to the ESP32-CAM
-4. **Test:** press button → photo should appear in Telegram
-5. **If it works:** post a visit to backend too (set BACKEND_URL in sketch + run backend server + run ngrok)
-
----
-
-## Step 5 Sketch — Key Settings
-
-```cpp
-// Credentials — already filled
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* BOT_TOKEN     = "YOUR_BOT_TOKEN_HERE";
-const char* CHAT_ID       = "YOUR_CHAT_ID";
-const char* BACKEND_URL   = "";  // fill with ngrok URL when ready
-
-// Pin definitions
-#define BUTTON_PIN  13   // External tactile button — wire to D13 on CS-CAM
-#define FLASH_LED    4   // Built-in white flash LED
-
-// Camera uses GPIO 0 as XCLK — DO NOT use GPIO 0 as button
-```
-
----
-
-## Arduino IDE Settings
-
-| Setting | Value |
-|---------|-------|
-| Board | AI Thinker ESP32-CAM |
-| Port | COM3 |
-| Baud rate (Serial Monitor) | 115200 |
-
----
-
-## How to Start the Backend
+## How to Run / Deploy
 
 ```bash
-cd C:\Users\yusse\OneDrive\Desktop\Smart-Doorbell\backend
+# Local backend (uses cloud Supabase DB via .env)
+cd backend
 uvicorn server:app --reload --port 8001
+
+# Deploy = just push to main (Railway auto-deploys)
+git push origin main
 ```
 
-## How to Start ngrok (for Telegram webhook)
-
-```bash
-# In a second terminal
-.\ngrok http 8001
-
-# Then register the webhook (replace URL with your ngrok URL)
-Invoke-WebRequest -Uri "http://localhost:8001/admin/set-webhook" -Method POST -ContentType "application/json" -Body '{"url":"https://YOUR-NGROK-URL"}'
-```
+No ngrok. Webhook is permanently registered to Railway.
 
 ---
 
@@ -196,29 +125,24 @@ Invoke-WebRequest -Uri "http://localhost:8001/admin/set-webhook" -Method POST -C
 
 | # | Issue | Status |
 |---|-------|--------|
-| 1 | GPIO 0 used as camera XCLK — cannot be used as button | ✅ Fixed — BUTTON_PIN changed to GPIO 13 |
-| 2 | CS-CAM carrier board connector type unclear | ⏳ Need close-up photo to determine wiring method |
-| 3 | Button not yet wired to active CS-CAM board | ⏳ In progress |
-| 4 | Step 5 not yet uploaded or tested | ⏳ Blocked on wiring |
-| 5 | Settings page UI only — not wired to backend | Deferred to V2 |
-| 6 | ngrok URL changes on every restart | Deferred — fix with cloud deployment |
-
----
-
-## Open Team Decisions
-
-| Decision | Status |
-|----------|--------|
-| Audio response: buzzer tones vs voice (MAX98357A + speaker) | ⏳ Waiting for team |
-| Cloud deployment: Railway vs Firebase | ⏳ Decide after hardware testing complete |
+| 1 | Old bot token in git history | ⏳ revoke later (user deferred) |
+| 2 | Button not wired | ⏳ solder at lab — IO13 + GND pads |
+| 3 | Telegram "remove buttons after reply" uses `editMessageCaption` — fails silently on **text-only** messages (no photo). Photo messages fine. | Low priority |
+| 4 | Settings page UI only — not wired to backend | Deferred to V2 |
+| 5 | Railway trial credit ($5 / 30 days) — check usage before demo day | Watch |
 
 ---
 
 ## What Comes After Step 5
 
-Once button wiring is done and Step 5 tested:
-
-1. **Connect ESP32 to backend** — fill `BACKEND_URL` in sketch, POST visits + heartbeat
-2. **Settings API** — build GET/POST `/api/settings` endpoint, wire to dashboard
-3. **Cloud deployment** — Railway or Firebase so ngrok is no longer needed
+1. **OLED screen feature** (when HW arrives): new endpoint `GET /api/visits/{id}/response` + ESP32 polls it and shows the reply to the visitor
+2. **Audio** (when HW arrives): buzzer tones vs voice — open team decision
+3. **Settings API** — `GET/POST /api/settings`, wire to dashboard
 4. **V3** — DeepFace visitor recognition
+
+---
+
+## Session Log
+
+- **2026-06-08:** GPIO 0/XCLK conflict fixed; wiring attempt blocked by connector type
+- **2026-06-10:** Connector mystery solved (solder pads); HW report submitted; secrets redacted from repo; **full cloud migration: Supabase Postgres + Railway deploy + permanent Telegram webhook, verified end-to-end**; ESP32 sketch pointed at cloud; test data cleaned (visit 5 kept as proof)
