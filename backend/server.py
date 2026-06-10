@@ -16,7 +16,7 @@ from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -153,6 +153,12 @@ def row_to_visit(row) -> dict:
     }
 
 # ── Routes ────────────────────────────────────────────────────
+
+# GET / — the live dashboard
+@app.get("/", include_in_schema=False)
+def dashboard():
+    return FileResponse(os.path.join(BASE_DIR, "dashboard.html"))
+
 
 # GET /api/visits — all visits, newest first
 @app.get("/api/visits")

@@ -714,8 +714,13 @@ select.setting-select {
 
 <script>
 // ── Config ────────────────────────────────────────────────
-const API  = 'http://localhost:8000';
-const WS   = 'ws://localhost:8000/ws';
+// Served over HTTP (Railway or local uvicorn): use the same origin.
+// Opened as a local file (file://): fall back to local dev server.
+const SAME_ORIGIN = location.protocol === 'http:' || location.protocol === 'https:';
+const API = SAME_ORIGIN ? '' : 'http://localhost:8001';
+const WS  = SAME_ORIGIN
+  ? (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'
+  : 'ws://localhost:8001/ws';
 
 // ── State ─────────────────────────────────────────────────
 let visits      = [];
