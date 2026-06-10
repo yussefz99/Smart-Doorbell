@@ -195,12 +195,14 @@ async def create_visit(
             # Durable storage: upload to Supabase Storage bucket
             import httpx
             async with httpx.AsyncClient() as client:
+                # New-style keys (sb_secret_...) go in the apikey header;
+                # a Bearer header with them fails ("Invalid Compact JWS").
                 r = await client.post(
                     f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{filename}",
                     headers={
-                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                        "Content-Type":  "image/jpeg",
-                        "x-upsert":      "true",
+                        "apikey":       SUPABASE_SERVICE_KEY,
+                        "Content-Type": "image/jpeg",
+                        "x-upsert":     "true",
                     },
                     content=content,
                     timeout=20,
