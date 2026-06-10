@@ -67,6 +67,12 @@ int           lastButtonState   = HIGH;
 #define MIN_PRESS_GAP  3000   // minimum ms between two doorbell triggers
 unsigned long lastPressTime = 0;
 
+// ── Heartbeat ─────────────────────────────────────────────────
+// Report WiFi signal to the backend every minute so the dashboard
+// can show the device as online/offline.
+#define HEARTBEAT_MS 60000UL
+unsigned long lastHeartbeat = 0;
+
 // ── Forward declarations ──────────────────────────────────────
 bool connectWiFi();
 bool initCamera();
@@ -74,6 +80,7 @@ camera_fb_t* capturePhoto();
 bool sendPhotoToTelegram(camera_fb_t* fb);
 void sendTextNotification(const String& message);
 bool postVisitToBackend(camera_fb_t* fb);
+void sendHeartbeat();
 void triggerDoorbell();
 void blinkFlash(int times);
 void setFlash(bool on);
@@ -107,6 +114,10 @@ void setup() {
 
   // Ready signal — 3 quick flashes
   blinkFlash(3);
+
+  // First heartbeat right away — dashboard shows Online immediately
+  sendHeartbeat();
+  lastHeartbeat = millis();
 
 #if TRIGGER_ON_BOOT
   // Demo mode: RESET button = doorbell. One event per boot.
@@ -143,6 +154,14 @@ void loop() {
   }
 
   lastButtonState = reading;
+
+  // Periodic heartbeat (takes ~1 s; a button press during it is
+  // missed — acceptable, the next press works)
+  if (millis() - lastHeartbeat >= HEARTBEAT_MS) {
+    lastHeartbeat = millis();
+    sendHeartbeat();
+  }
+
   delay(10);
 }
 
@@ -401,6 +420,40 @@ bool postVisitToBackend(camera_fb_t* fb) {
   Serial.println("[Backend] Response: " + statusLine);
   client.stop();
   return statusLine.indexOf("201") > 0;
+}
+
+// ── Heartbeat: report WiFi signal to backend ──────────────────
+void sendHeartbeat() {
+  if (strlen(BACKEND_URL) == 0 || WiFi.status() != WL_CONNECTED) return;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setTimeout(10);
+
+  String host = String(BACKEND_URL);
+  host.replace("https://", "");
+  host.replace("http://",  "");
+
+  if (!client.connect(host.c_str(), 443)) {
+    Serial.println("[Heartbeat] Connection failed.");
+    return;
+  }
+
+  String body = String("{\"wifi_signal\":") + WiFi.RSSI() + "}";
+
+  client.println("POST /api/device/heartbeat HTTP/1.1");
+  client.println("Host: " + host);
+  client.println("Content-Type: application/json");
+  client.println("Content-Length: " + String(body.length()));
+  client.println("Connection: close");
+  client.println();
+  client.print(body);
+
+  unsigned long t = millis();
+  while (client.available() == 0 && millis() - t < 5000) delay(10);
+  client.stop();
+
+  Serial.println("[Heartbeat] Sent. RSSI: " + String(WiFi.RSSI()) + " dBm");
 }
 
 // ── Flash LED helpers ─────────────────────────────────────────

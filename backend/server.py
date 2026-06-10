@@ -338,11 +338,19 @@ def get_device_status():
 
     uptime_seconds = int(time.time() - SERVER_START_TIME)
 
+    # Device counts as online if a heartbeat arrived recently
+    # (heartbeat interval is 60 s; allow 2.5 missed-beat margin)
+    online = False
+    if row["last_sync"]:
+        age = (datetime.now(timezone.utc) - row["last_sync"]).total_seconds()
+        online = age < 150
+
     return {
         "uptime_seconds": uptime_seconds,
         "wifi_signal":    row["wifi_signal"],
         "last_sync":      iso(row["last_sync"]),
-        "camera_ok":      True,   # ESP32 will update this via heartbeat
+        "online":         online,
+        "camera_ok":      online,   # unknown when offline; tied to liveness
     }
 
 

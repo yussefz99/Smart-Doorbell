@@ -1211,14 +1211,14 @@ function renderDiagnostics(d) {
         <div class="d-sub">${sigLabel}</div>
       </div>
       <div class="diag-card">
-        <div class="d-label">Last Sync</div>
+        <div class="d-label">Last Heartbeat</div>
         <div class="d-value" style="font-size:14px">${d.last_sync ? timeAgo(d.last_sync) : '—'}</div>
         <div class="d-sub">${d.last_sync ? fmtDate(d.last_sync) : 'No heartbeat yet'}</div>
       </div>
       <div class="diag-card">
-        <div class="d-label">Camera</div>
-        <div class="d-value ${d.camera_ok ? 'green' : 'red'}">${d.camera_ok ? 'OK' : 'FAIL'}</div>
-        <div class="d-sub"><span class="status-dot ${d.camera_ok ? 'ok' : 'err'}"></span>${d.camera_ok ? 'Operational' : 'Check connection'}</div>
+        <div class="d-label">Doorbell Device</div>
+        <div class="d-value ${d.online ? 'green' : 'red'}">${d.online ? '🟢 Online' : '🔴 Offline'}</div>
+        <div class="d-sub"><span class="status-dot ${d.online ? 'ok' : 'err'}"></span>${d.online ? 'Heartbeat received' : 'No heartbeat in 2+ min'}</div>
       </div>
     `;
   }
@@ -1286,6 +1286,12 @@ async function startApp() {
   addLog('ok', 'Dashboard loaded');
   // Poll every 30s as fallback if WebSocket drops
   setInterval(loadVisits, 30000);
+  // Keep Diagnostics live while that page is open
+  setInterval(() => {
+    if (document.querySelector('.nav-item.active')?.dataset.page === 'diagnostics') {
+      loadDiagnostics();
+    }
+  }, 15000);
 }
 
 (async () => {
