@@ -1,15 +1,17 @@
 # ============================================================
 #  Smart Doorbell – Backend Server
-#  Stack : FastAPI + SQLite (no ORM, plain sqlite3)
-#  Run   : uvicorn server:app --reload --port 8000
+#  Stack : FastAPI + PostgreSQL (Supabase, plain psycopg2)
+#  Run   : uvicorn server:app --reload --port 8001
 # ============================================================
 
-import sqlite3
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from contextlib import asynccontextmanager
 from typing import Optional
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,50 +26,61 @@ import telegram_bot as tg
 
 # ── Paths ────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
-DB_PATH     = os.path.join(BASE_DIR, "doorbell.db")
 PHOTOS_DIR  = os.path.join(BASE_DIR, "photos")
 os.makedirs(PHOTOS_DIR, exist_ok=True)
+
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 SERVER_START_TIME = time.time()
 
 # ── Database ─────────────────────────────────────────────────
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row   # rows behave like dicts
-    return conn
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+def db_fetchall(sql, params=None):
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchall()
+
+def db_fetchone(sql, params=None):
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.fetchone()
+
+def db_execute(sql, params=None):
+    """Run a statement, return affected row count."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            return cur.rowcount
 
 def init_db():
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS visits (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            trigger             TEXT    NOT NULL CHECK(trigger IN ('button','motion')),
-            timestamp           TEXT    NOT NULL,
-            photo_url           TEXT,
-            response            TEXT,
-            tag                 TEXT    CHECK(tag IN ('Expected','Unknown','Suspicious')),
-            silent              INTEGER NOT NULL DEFAULT 0,
-            telegram_message_id INTEGER
-        );
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS visits (
+                    id                  SERIAL PRIMARY KEY,
+                    trigger             TEXT NOT NULL CHECK (trigger IN ('button','motion')),
+                    timestamp           TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    photo_url           TEXT,
+                    response            TEXT,
+                    tag                 TEXT CHECK (tag IN ('Expected','Unknown','Suspicious')),
+                    silent              BOOLEAN NOT NULL DEFAULT FALSE,
+                    telegram_message_id BIGINT
+                );
 
-        CREATE TABLE IF NOT EXISTS device_status (
-            id          INTEGER PRIMARY KEY CHECK(id = 1),
-            wifi_signal INTEGER,
-            last_sync   TEXT
-        );
+                CREATE TABLE IF NOT EXISTS device_status (
+                    id          INTEGER PRIMARY KEY CHECK (id = 1),
+                    wifi_signal INTEGER,
+                    last_sync   TIMESTAMPTZ
+                );
 
-        INSERT OR IGNORE INTO device_status (id, wifi_signal, last_sync)
-        VALUES (1, NULL, NULL);
-    """)
-    conn.commit()
-
-    # Migration: add telegram_message_id column if it doesn't exist yet
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(visits)").fetchall()]
-    if "telegram_message_id" not in cols:
-        conn.execute("ALTER TABLE visits ADD COLUMN telegram_message_id INTEGER")
-        conn.commit()
-
-    conn.close()
+                INSERT INTO device_status (id, wifi_signal, last_sync)
+                VALUES (1, NULL, NULL)
+                ON CONFLICT (id) DO NOTHING;
+            """)
 
 # ── WebSocket connection manager ──────────────────────────────
 class ConnectionManager:
@@ -98,7 +111,6 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    seed_demo_data()
     yield
 
 app = FastAPI(title="Smart Doorbell API", lifespan=lifespan)
@@ -121,11 +133,18 @@ class DeviceHeartbeat(BaseModel):
     wifi_signal: Optional[int] = None
 
 # ── Helper ────────────────────────────────────────────────────
+def iso(dt) -> Optional[str]:
+    if dt is None:
+        return None
+    if isinstance(dt, (datetime, date)):
+        return dt.isoformat()
+    return str(dt)
+
 def row_to_visit(row) -> dict:
     return {
         "id":                  row["id"],
         "trigger":             row["trigger"],
-        "timestamp":           row["timestamp"],
+        "timestamp":           iso(row["timestamp"]),
         "photo_url":           row["photo_url"],
         "response":            row["response"],
         "tag":                 row["tag"],
@@ -138,11 +157,7 @@ def row_to_visit(row) -> dict:
 # GET /api/visits — all visits, newest first
 @app.get("/api/visits")
 def get_visits():
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM visits ORDER BY timestamp DESC"
-    ).fetchall()
-    conn.close()
+    rows = db_fetchall("SELECT * FROM visits ORDER BY timestamp DESC")
     return [row_to_visit(r) for r in rows]
 
 
@@ -168,25 +183,22 @@ async def create_visit(
             f.write(content)
         photo_url = f"/photos/{filename}"
 
-    conn = get_db()
-    cur  = conn.execute(
-        "INSERT INTO visits (trigger, timestamp, photo_url, silent) VALUES (?,?,?,?)",
-        (trigger, ts, photo_url, int(silent))
+    row = db_fetchone(
+        """INSERT INTO visits (trigger, timestamp, photo_url, silent)
+           VALUES (%s, %s, %s, %s)
+           RETURNING *""",
+        (trigger, ts, photo_url, bool(silent))
     )
-    conn.commit()
-    visit_id = cur.lastrowid
-
-    row   = conn.execute("SELECT * FROM visits WHERE id=?", (visit_id,)).fetchone()
-    conn.close()
     visit = row_to_visit(row)
+    visit_id = visit["id"]
 
     # Send Telegram notification with reply buttons
     msg_id = await tg.send_visit_notification(visit)
     if msg_id:
-        conn = get_db()
-        conn.execute("UPDATE visits SET telegram_message_id=? WHERE id=?", (msg_id, visit_id))
-        conn.commit()
-        conn.close()
+        db_execute(
+            "UPDATE visits SET telegram_message_id=%s WHERE id=%s",
+            (msg_id, visit_id)
+        )
         visit["telegram_message_id"] = msg_id
 
     # Push to all connected dashboard clients
@@ -201,12 +213,9 @@ def update_tag(visit_id: int, body: TagUpdate):
     if body.tag not in ("Expected", "Unknown", "Suspicious"):
         raise HTTPException(400, "tag must be Expected, Unknown, or Suspicious")
 
-    conn = get_db()
-    affected = conn.execute(
-        "UPDATE visits SET tag=? WHERE id=?", (body.tag, visit_id)
-    ).rowcount
-    conn.commit()
-    conn.close()
+    affected = db_execute(
+        "UPDATE visits SET tag=%s WHERE id=%s", (body.tag, visit_id)
+    )
 
     if affected == 0:
         raise HTTPException(404, "Visit not found")
@@ -216,50 +225,45 @@ def update_tag(visit_id: int, body: TagUpdate):
 # GET /api/stats — visits per day + busiest hours
 @app.get("/api/stats")
 def get_stats():
-    conn = get_db()
-
     # Visits per day for the last 7 days
-    per_day = conn.execute("""
+    per_day = db_fetchall("""
         SELECT DATE(timestamp) AS day,
                COUNT(*)        AS total,
-               SUM(trigger='button') AS button,
-               SUM(trigger='motion') AS motion
+               COUNT(*) FILTER (WHERE trigger = 'button') AS button,
+               COUNT(*) FILTER (WHERE trigger = 'motion') AS motion
         FROM   visits
-        WHERE  DATE(timestamp) >= DATE('now','-6 days')
+        WHERE  DATE(timestamp) >= CURRENT_DATE - 6
         GROUP  BY day
         ORDER  BY day
-    """).fetchall()
+    """)
 
     # Hourly activity (0-23)
-    hourly = conn.execute("""
-        SELECT CAST(strftime('%H', timestamp) AS INTEGER) AS hour,
+    hourly = db_fetchall("""
+        SELECT EXTRACT(HOUR FROM timestamp)::int AS hour,
                COUNT(*) AS total,
-               SUM(trigger='button') AS button,
-               SUM(trigger='motion') AS motion
+               COUNT(*) FILTER (WHERE trigger = 'button') AS button,
+               COUNT(*) FILTER (WHERE trigger = 'motion') AS motion
         FROM   visits
         GROUP  BY hour
         ORDER  BY hour
-    """).fetchall()
+    """)
 
     # Summary figures
-    summary = conn.execute("""
+    summary = db_fetchone("""
         SELECT
-            COUNT(*)                                        AS total_visits,
-            SUM(trigger='button')                           AS button_presses,
-            SUM(trigger='motion')                           AS motion_triggers,
-            SUM(response IS NOT NULL AND response != '')    AS responses,
-            COUNT(*)                                        AS total_for_rate
+            COUNT(*)                                   AS total_visits,
+            COUNT(*) FILTER (WHERE trigger = 'button') AS button_presses,
+            COUNT(*) FILTER (WHERE trigger = 'motion') AS motion_triggers,
+            COUNT(*) FILTER (WHERE response IS NOT NULL AND response != '') AS responses
         FROM visits
-    """).fetchone()
-
-    conn.close()
+    """)
 
     response_rate = 0
     if summary["total_visits"] > 0:
         response_rate = round(summary["responses"] / summary["total_visits"] * 100)
 
     return {
-        "per_day": [dict(r) for r in per_day],
+        "per_day": [{**dict(r), "day": iso(r["day"])} for r in per_day],
         "hourly":  [dict(r) for r in hourly],
         "summary": {
             "total_visits":    summary["total_visits"],
@@ -273,16 +277,14 @@ def get_stats():
 # GET /api/device/status — uptime, WiFi signal, last sync
 @app.get("/api/device/status")
 def get_device_status():
-    conn = get_db()
-    row  = conn.execute("SELECT * FROM device_status WHERE id=1").fetchone()
-    conn.close()
+    row = db_fetchone("SELECT * FROM device_status WHERE id=1")
 
     uptime_seconds = int(time.time() - SERVER_START_TIME)
 
     return {
         "uptime_seconds": uptime_seconds,
         "wifi_signal":    row["wifi_signal"],
-        "last_sync":      row["last_sync"],
+        "last_sync":      iso(row["last_sync"]),
         "camera_ok":      True,   # ESP32 will update this via heartbeat
     }
 
@@ -291,13 +293,10 @@ def get_device_status():
 @app.post("/api/device/heartbeat")
 def device_heartbeat(body: DeviceHeartbeat):
     now = datetime.now(timezone.utc).isoformat()
-    conn = get_db()
-    conn.execute(
-        "UPDATE device_status SET wifi_signal=?, last_sync=? WHERE id=1",
+    db_execute(
+        "UPDATE device_status SET wifi_signal=%s, last_sync=%s WHERE id=1",
         (body.wifi_signal, now)
     )
-    conn.commit()
-    conn.close()
     return {"ok": True}
 
 
@@ -340,14 +339,11 @@ async def telegram_webhook(request: Request):
     response   = parts[2]
 
     # Save response to database
-    conn = get_db()
-    conn.execute(
-        "UPDATE visits SET response=? WHERE id=?",
+    db_execute(
+        "UPDATE visits SET response=%s WHERE id=%s",
         (response, visit_id)
     )
-    conn.commit()
-    row = conn.execute("SELECT * FROM visits WHERE id=?", (visit_id,)).fetchone()
-    conn.close()
+    row = db_fetchone("SELECT * FROM visits WHERE id=%s", (visit_id,))
 
     if not row:
         await tg.answer_callback(callback_id, "Visit not found")
@@ -382,8 +378,8 @@ async def telegram_webhook(request: Request):
 @app.post("/admin/set-webhook")
 async def set_webhook(request: Request):
     """
-    Call this once after starting ngrok.
-    Body: { "url": "https://abc123.ngrok.io" }
+    Call this once after deploying (or starting ngrok).
+    Body: { "url": "https://your-server-url" }
     """
     body = await request.json()
     url  = body.get("url", "").rstrip("/")
@@ -396,28 +392,3 @@ async def set_webhook(request: Request):
 @app.get("/admin/webhook-info")
 async def webhook_info():
     return await tg.get_webhook_info()
-
-
-# ── Demo data (runs once on first start if DB is empty) ───────
-def seed_demo_data():
-    conn = get_db()
-    count = conn.execute("SELECT COUNT(*) FROM visits").fetchone()[0]
-    if count > 0:
-        conn.close()
-        return
-
-    demo = [
-        ("button", "2026-05-30T08:15:00Z", None, "On my way",  "Expected",   0),
-        ("button", "2026-05-30T13:42:00Z", None, None,         "Unknown",    0),
-        ("motion", "2026-05-30T23:10:00Z", None, None,         "Suspicious", 1),
-        ("button", "2026-05-31T09:05:00Z", None, "Not home",   "Expected",   0),
-        ("button", "2026-05-31T17:30:00Z", None, None,         None,         0),
-        ("motion", "2026-06-01T02:20:00Z", None, None,         None,         1),
-        ("button", "2026-06-01T10:00:00Z", None, None,         None,         0),
-    ]
-    conn.executemany(
-        "INSERT INTO visits (trigger,timestamp,photo_url,response,tag,silent) VALUES (?,?,?,?,?,?)",
-        demo
-    )
-    conn.commit()
-    conn.close()
