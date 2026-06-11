@@ -133,7 +133,7 @@ No ngrok. Webhook is permanently registered to Railway.
 | 1 | Old bot token in git history | ✅ **Revoked 2026-06-10** — history copy is dead. New token in `.env`, Railway, `secrets.h`. ESP32 flash still has old token (harmless — only the no-backend fallback path uses it); refresh on next upload |
 | 2 | Button not wired | ⏳ solder at lab — IO13 + GND pads |
 | 3 | Telegram "remove buttons after reply" uses `editMessageCaption` — fails silently on **text-only** messages (no photo). Photo messages fine. | Low priority |
-| 4 | Settings page UI only — not wired to backend | Deferred to V2 |
+| 4 | Settings page UI only — not wired to backend | ✅ **Fixed 2026-06-11** — quiet hours fully implemented (settings table, GET/PUT /api/settings, silent Telegram delivery via disable_notification, Asia/Jerusalem timezone, midnight-wrap); dead toggles removed from the page. Also added: delete-visit button (removes DB row + stored photo), doorbell ding sound on new visits, README rewritten, Unit Tests folder populated to match the submitted HW report |
 | 5 | Railway trial credit ($5 / 30 days) — check usage before demo day | Watch |
 | 6 | Photos stored on Railway's ephemeral disk | ✅ **Fixed 2026-06-10** — photos upload to Supabase Storage (public `photos` bucket, `apikey` header with `sb_secret_` key); visit stores permanent public URL; verified live |
 | 7 | ESP32 never posts `/api/device/heartbeat` — Diagnostics page shows stale data | ✅ **Fixed 2026-06-10** — sketch sends heartbeat every 60 s with real RSSI; backend computes `online` (<150 s); dashboard shows 🟢 Online / 🔴 Offline, auto-refreshes; verified on hardware |
