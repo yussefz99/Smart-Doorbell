@@ -59,6 +59,73 @@ def extract_embedding(image_bytes: bytes):
     return best.normed_embedding.tolist(), float(best.det_score)
 
 
+# ── Visitor matching ──────────────────────────────────────────
+# Cosine similarity above this = same person
+MATCH_THRESHOLD = 0.40
+# Below this (but matched) we also store the new embedding, so each
+# visitor accumulates a variety of angles/lighting (max per visitor):
+ADD_EMBEDDING_BELOW = 0.60
+MAX_EMBEDDINGS_PER_VISITOR = 5
+
+
+def to_pgvector(embedding) -> str:
+    return "[" + ",".join(f"{x:.6f}" for x in embedding) + "]"
+
+
+def match_or_create_visitor(db_fetchone, db_execute, embedding, photo_url, ts):
+    """
+    Find the nearest known visitor by cosine similarity, or create a
+    new one. Returns (visitor_id, visitor_name, visit_count, is_new).
+    """
+    vec = to_pgvector(embedding)
+
+    nearest = db_fetchone(
+        """SELECT v.id, v.name, v.visit_count,
+                  1 - (e.embedding <=> %s::vector) AS similarity
+           FROM   visitor_embeddings e
+           JOIN   visitors v ON v.id = e.visitor_id
+           ORDER  BY e.embedding <=> %s::vector
+           LIMIT  1""",
+        (vec, vec)
+    )
+
+    if nearest and float(nearest["similarity"]) >= MATCH_THRESHOLD:
+        visitor_id = nearest["id"]
+        row = db_fetchone(
+            """UPDATE visitors
+               SET visit_count = visit_count + 1, last_seen = %s
+               WHERE id = %s
+               RETURNING visit_count""",
+            (ts, visitor_id)
+        )
+        # Store an extra embedding when this angle looks new
+        if float(nearest["similarity"]) < ADD_EMBEDDING_BELOW:
+            n = db_fetchone(
+                "SELECT COUNT(*) AS n FROM visitor_embeddings WHERE visitor_id=%s",
+                (visitor_id,)
+            )["n"]
+            if n < MAX_EMBEDDINGS_PER_VISITOR:
+                db_execute(
+                    "INSERT INTO visitor_embeddings (visitor_id, embedding) VALUES (%s, %s::vector)",
+                    (visitor_id, vec)
+                )
+        return visitor_id, nearest["name"], row["visit_count"], False
+
+    # New visitor
+    row = db_fetchone(
+        """INSERT INTO visitors (photo_url, first_seen, last_seen, visit_count)
+           VALUES (%s, %s, %s, 1)
+           RETURNING id""",
+        (photo_url, ts, ts)
+    )
+    visitor_id = row["id"]
+    db_execute(
+        "INSERT INTO visitor_embeddings (visitor_id, embedding) VALUES (%s, %s::vector)",
+        (visitor_id, vec)
+    )
+    return visitor_id, None, 1, True
+
+
 def health() -> dict:
     """Load the model and report memory + timing — used to verify the
     deployment environment can actually run recognition."""

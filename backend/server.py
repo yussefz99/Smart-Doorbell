@@ -43,6 +43,9 @@ STORAGE_BUCKET       = "photos"
 # Empty value = gate disabled (e.g. local development).
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
 
+# Face recognition toggle — "0" disables matching entirely
+RECOGNITION_ENABLED = os.getenv("RECOGNITION_ENABLED", "1").strip() != "0"
+
 def require_dashboard_key(x_dashboard_key: str = Header(default="")):
     if DASHBOARD_PASSWORD and x_dashboard_key != DASHBOARD_PASSWORD:
         raise HTTPException(401, "Invalid dashboard password")
@@ -127,6 +130,17 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    if RECOGNITION_ENABLED:
+        # Warm the face model in the background so the first visit
+        # after a deploy doesn't wait for the model download/load.
+        import threading, recognition
+        def _warm():
+            try:
+                recognition.get_model()
+                print("[Recognition] model warmed up")
+            except Exception as e:
+                print(f"[Recognition] warmup failed: {e!r}")
+        threading.Thread(target=_warm, daemon=True).start()
     yield
 
 app = FastAPI(title="Smart Doorbell API", lifespan=lifespan)
@@ -166,6 +180,8 @@ def row_to_visit(row) -> dict:
         "tag":                 row["tag"],
         "silent":              bool(row["silent"]),
         "telegram_message_id": row["telegram_message_id"],
+        "visitor_id":          row.get("visitor_id"),
+        "visitor_name":        row.get("visitor_name"),
     }
 
 # ── Routes ────────────────────────────────────────────────────
@@ -193,11 +209,56 @@ def recognition_health():
         raise HTTPException(500, f"recognition unavailable: {e!r}")
 
 
-# GET /api/visits — all visits, newest first
+# GET /api/visits — all visits, newest first (with visitor names)
 @app.get("/api/visits", dependencies=[Depends(require_dashboard_key)])
 def get_visits():
-    rows = db_fetchall("SELECT * FROM visits ORDER BY timestamp DESC")
+    rows = db_fetchall(
+        """SELECT visits.*, visitors.name AS visitor_name
+           FROM visits LEFT JOIN visitors ON visitors.id = visits.visitor_id
+           ORDER BY visits.timestamp DESC"""
+    )
     return [row_to_visit(r) for r in rows]
+
+
+# ── Visitors API ──────────────────────────────────────────────
+
+class VisitorRename(BaseModel):
+    name: str
+
+@app.get("/api/visitors", dependencies=[Depends(require_dashboard_key)])
+def get_visitors():
+    rows = db_fetchall(
+        "SELECT id, name, photo_url, first_seen, last_seen, visit_count "
+        "FROM visitors ORDER BY last_seen DESC"
+    )
+    return [{
+        "id":          r["id"],
+        "name":        r["name"],
+        "photo_url":   r["photo_url"],
+        "first_seen":  iso(r["first_seen"]),
+        "last_seen":   iso(r["last_seen"]),
+        "visit_count": r["visit_count"],
+    } for r in rows]
+
+
+@app.patch("/api/visitors/{visitor_id}", dependencies=[Depends(require_dashboard_key)])
+def rename_visitor(visitor_id: int, body: VisitorRename):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "name must not be empty")
+    affected = db_execute("UPDATE visitors SET name=%s WHERE id=%s", (name, visitor_id))
+    if affected == 0:
+        raise HTTPException(404, "Visitor not found")
+    return {"id": visitor_id, "name": name}
+
+
+@app.delete("/api/visitors/{visitor_id}", dependencies=[Depends(require_dashboard_key)])
+def delete_visitor(visitor_id: int):
+    db_execute("UPDATE visits SET visitor_id=NULL WHERE visitor_id=%s", (visitor_id,))
+    affected = db_execute("DELETE FROM visitors WHERE id=%s", (visitor_id,))
+    if affected == 0:
+        raise HTTPException(404, "Visitor not found")
+    return {"deleted": visitor_id}
 
 
 # POST /api/visits — ESP32 posts a new visit (multipart: photo + metadata)
@@ -246,14 +307,40 @@ async def create_visit(
                 f.write(content)
             photo_url = f"/photos/{filename}"
 
+    # Face recognition — never allowed to break visit creation
+    visitor_id = None
+    visitor_name = None
+    visitor_visits = None
+    visitor_is_new = False
+    if RECOGNITION_ENABLED and photo and photo_url:
+        try:
+            import asyncio, recognition
+            embedding, det = await asyncio.to_thread(
+                recognition.extract_embedding, content
+            )
+            if embedding:
+                visitor_id, visitor_name, visitor_visits, visitor_is_new = \
+                    recognition.match_or_create_visitor(
+                        db_fetchone, db_execute, embedding, photo_url, ts
+                    )
+                print(f"[Recognition] visitor={visitor_id} name={visitor_name} "
+                      f"visits={visitor_visits} new={visitor_is_new} det={det:.2f}")
+            else:
+                print("[Recognition] no usable face in photo")
+        except Exception as e:
+            print(f"[Recognition] failed: {e!r}")
+
     row = db_fetchone(
-        """INSERT INTO visits (trigger, timestamp, photo_url, silent)
-           VALUES (%s, %s, %s, %s)
+        """INSERT INTO visits (trigger, timestamp, photo_url, silent, visitor_id)
+           VALUES (%s, %s, %s, %s, %s)
            RETURNING *""",
-        (trigger, ts, photo_url, bool(silent))
+        (trigger, ts, photo_url, bool(silent), visitor_id)
     )
     visit = row_to_visit(row)
     visit_id = visit["id"]
+    visit["visitor_name"]   = visitor_name
+    visit["visitor_visits"] = visitor_visits
+    visit["visitor_is_new"] = visitor_is_new
 
     # Send Telegram notification with reply buttons.
     # A Telegram failure must not lose the visit — it is already saved.

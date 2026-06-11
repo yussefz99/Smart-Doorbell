@@ -41,9 +41,29 @@ async def send_visit_notification(visit: dict) -> int | None:
     ts       = visit["timestamp"][:16].replace("T", " ")
     silent   = visit.get("silent", False)
 
+    # Headline: use the recognized visitor when we have one
+    name   = visit.get("visitor_name")
+    v_id   = visit.get("visitor_id")
+    count  = visit.get("visitor_visits")
+    is_new = visit.get("visitor_is_new")
+
+    if trigger != "button":
+        headline = "👁 Motion detected"
+    elif name:
+        headline = f"🔔 {name} is at the door!"
+    elif v_id and is_new:
+        headline = f"🔔 New visitor at the door (Visitor #{v_id})"
+    elif v_id:
+        headline = f"🔔 Visitor #{v_id} is at the door"
+    else:
+        headline = "🔔 Doorbell pressed"
+
+    visits_line = f"👤 Visit number {count}" if (count and count > 1) else ""
+
     caption = (
-        f"{'🔔 Doorbell pressed' if trigger == 'button' else '👁 Motion detected'}\n"
+        f"{headline}\n"
         f"🕐 {ts}\n"
+        f"{visits_line}\n"
         f"{'🔕 Silent mode — recorded only' if silent else ''}"
     ).strip()
 
