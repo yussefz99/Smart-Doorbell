@@ -1,6 +1,7 @@
 # Secrets
 backend/.env
 ESP32/**/secrets.h
+Unit Tests/**/secrets.h
 
 # Python
 __pycache__/
