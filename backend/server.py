@@ -101,6 +101,17 @@ def init_db():
                 INSERT INTO device_status (id, wifi_signal, last_sync)
                 VALUES (1, NULL, NULL)
                 ON CONFLICT (id) DO NOTHING;
+
+                CREATE TABLE IF NOT EXISTS settings (
+                    id            INTEGER PRIMARY KEY CHECK (id = 1),
+                    quiet_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    quiet_start   TEXT NOT NULL DEFAULT '22:00',
+                    quiet_end     TEXT NOT NULL DEFAULT '07:00',
+                    timezone      TEXT NOT NULL DEFAULT 'Asia/Jerusalem'
+                );
+
+                INSERT INTO settings (id) VALUES (1)
+                ON CONFLICT (id) DO NOTHING;
             """)
 
 # ── WebSocket connection manager ──────────────────────────────
@@ -164,6 +175,33 @@ class TagUpdate(BaseModel):
 class DeviceHeartbeat(BaseModel):
     wifi_signal: Optional[int] = None
 
+class SettingsUpdate(BaseModel):
+    quiet_enabled: bool
+    quiet_start:   str   # "HH:MM"
+    quiet_end:     str   # "HH:MM"
+
+
+# ── Quiet hours ───────────────────────────────────────────────
+import re as _re
+_TIME_RE = _re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+def in_quiet_hours() -> bool:
+    """True when the current local time falls inside the configured
+    quiet window. A window like 22:00-07:00 wraps past midnight."""
+    s = db_fetchone("SELECT * FROM settings WHERE id=1")
+    if not s or not s["quiet_enabled"]:
+        return False
+    from zoneinfo import ZoneInfo
+    try:
+        now = datetime.now(ZoneInfo(s["timezone"]))
+    except Exception:
+        now = datetime.now(timezone.utc)
+    cur = now.strftime("%H:%M")
+    start, end = s["quiet_start"], s["quiet_end"]
+    if start <= end:
+        return start <= cur < end
+    return cur >= start or cur < end
+
 # ── Helper ────────────────────────────────────────────────────
 def iso(dt) -> Optional[str]:
     if dt is None:
@@ -224,6 +262,59 @@ def get_visits():
     return [row_to_visit(r) for r in rows]
 
 
+# ── Settings API ──────────────────────────────────────────────
+
+@app.get("/api/settings", dependencies=[Depends(require_dashboard_key)])
+def get_settings():
+    s = db_fetchone("SELECT * FROM settings WHERE id=1")
+    return {
+        "quiet_enabled": bool(s["quiet_enabled"]),
+        "quiet_start":   s["quiet_start"],
+        "quiet_end":     s["quiet_end"],
+        "timezone":      s["timezone"],
+    }
+
+
+@app.put("/api/settings", dependencies=[Depends(require_dashboard_key)])
+def update_settings(body: SettingsUpdate):
+    if not _TIME_RE.match(body.quiet_start) or not _TIME_RE.match(body.quiet_end):
+        raise HTTPException(400, "times must be HH:MM (24h)")
+    db_execute(
+        "UPDATE settings SET quiet_enabled=%s, quiet_start=%s, quiet_end=%s WHERE id=1",
+        (body.quiet_enabled, body.quiet_start, body.quiet_end)
+    )
+    return get_settings()
+
+
+# DELETE /api/visits/:id — remove a visit (and its stored photo)
+@app.delete("/api/visits/{visit_id}", dependencies=[Depends(require_dashboard_key)])
+async def delete_visit(visit_id: int):
+    row = db_fetchone("SELECT photo_url FROM visits WHERE id=%s", (visit_id,))
+    if not row:
+        raise HTTPException(404, "Visit not found")
+
+    db_execute("DELETE FROM visits WHERE id=%s", (visit_id,))
+
+    # Best-effort cleanup of the photo in Supabase Storage
+    photo_url = row["photo_url"] or ""
+    marker = f"/object/public/{STORAGE_BUCKET}/"
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY and marker in photo_url:
+        filename = photo_url.split(marker, 1)[1]
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                await client.delete(
+                    f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{filename}",
+                    headers={"apikey": SUPABASE_SERVICE_KEY},
+                    timeout=15,
+                )
+        except Exception as e:
+            print(f"[Storage] photo delete failed: {e!r}")
+
+    await manager.broadcast({"type": "visit_deleted", "data": {"id": visit_id}})
+    return {"deleted": visit_id}
+
+
 # ── Visitors API ──────────────────────────────────────────────
 
 class VisitorRename(BaseModel):
@@ -277,6 +368,12 @@ async def create_visit(
         raise HTTPException(400, "trigger must be 'button' or 'motion'")
 
     ts = timestamp or datetime.now(timezone.utc).isoformat()
+
+    # Quiet hours: keep recording visits, but notify silently
+    try:
+        silent = bool(silent) or in_quiet_hours()
+    except Exception as e:
+        print(f"[Settings] quiet-hours check failed: {e!r}")
 
     photo_url = None
     if photo:

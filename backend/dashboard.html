@@ -320,6 +320,12 @@ tbody tr:hover { background: var(--surface2); }
 .lock-card button:hover { filter: brightness(1.1); }
 .lock-error { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 17px; }
 
+.del-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; opacity: 0.4; padding: 4px;
+}
+.del-btn:hover { opacity: 1; }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -653,6 +659,7 @@ select.setting-select {
               <th>Trigger</th>
               <th>Response</th>
               <th>Tag</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="visits-tbody"></tbody>
@@ -703,7 +710,7 @@ select.setting-select {
         <div class="settings-card">
           <h3>🌙 Quiet Hours</h3>
           <div class="setting-row">
-            <div><div class="setting-label">Enable Quiet Hours</div><div class="setting-sub">Silence motion alerts during these hours</div></div>
+            <div><div class="setting-label">Enable Quiet Hours</div><div class="setting-sub">Visits are still recorded, but Telegram notifications arrive silently (no sound/vibration)</div></div>
             <label class="toggle"><input type="checkbox" id="s-quiet"><span class="toggle-slider"></span></label>
           </div>
           <div class="setting-row">
@@ -714,64 +721,17 @@ select.setting-select {
             <div class="setting-label">End Time</div>
             <input class="time-input" type="time" id="s-quiet-end" value="07:00">
           </div>
-        </div>
-
-        <div class="settings-card">
-          <h3>🚶 Motion Detection</h3>
           <div class="setting-row">
-            <div><div class="setting-label">Motion Alerts</div><div class="setting-sub">Send Telegram alert on motion</div></div>
-            <label class="toggle"><input type="checkbox" id="s-motion" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
-            <div class="setting-label">Sensitivity</div>
-            <div class="range-wrap">
-              <input type="range" min="1" max="5" value="3" id="s-pir"
-                oninput="document.getElementById('s-pir-val').textContent=this.value">
-              <span class="range-val" id="s-pir-val">3</span>
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="setting-label">Cooldown</div>
-            <select class="setting-select" id="s-cooldown">
-              <option>30 sec</option><option selected>1 min</option>
-              <option>2 min</option><option>5 min</option>
-            </select>
+            <div class="setting-label">Status</div>
+            <span id="settings-saved" style="font-size:12px;color:var(--text-dim)"></span>
           </div>
         </div>
 
         <div class="settings-card">
           <h3>💬 Telegram</h3>
           <div class="setting-row">
-            <div><div class="setting-label">Doorbell Alerts</div><div class="setting-sub">Notify on button press</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
-            <div><div class="setting-label">Motion Alerts</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
-            <div><div class="setting-label">Camera Failure Alerts</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
             <div class="setting-label">Bot Status</div>
             <span id="bot-status" style="font-size:12px;color:var(--text-dim)">Checking…</span>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h3>📡 Device</h3>
-          <div class="setting-row">
-            <div><div class="setting-label">Offline Buffer</div><div class="setting-sub">Store visits when WiFi is down</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
-            <div><div class="setting-label">LED Indicators</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
-          </div>
-          <div class="setting-row">
-            <div><div class="setting-label">Buzzer Feedback</div></div>
-            <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>
           </div>
         </div>
 
@@ -850,6 +810,65 @@ async function submitKey() {
   }
 }
 
+// ── Notification sound ────────────────────────────────────
+// Two-tone "ding-dong" via WebAudio — no audio file needed.
+// Browsers allow sound only after the user has interacted with
+// the page once; until then this fails silently.
+let _audioCtx = null;
+function playDing() {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    [[660, 0], [520, 0.18]].forEach(([freq, delay]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.45);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.5);
+    });
+  } catch (e) { /* sound blocked until first user interaction */ }
+}
+
+// ── Settings (quiet hours) ────────────────────────────────
+async function loadSettings() {
+  try {
+    const s = await fetchJSON('/api/settings');
+    document.getElementById('s-quiet').checked       = s.quiet_enabled;
+    document.getElementById('s-quiet-start').value   = s.quiet_start;
+    document.getElementById('s-quiet-end').value     = s.quiet_end;
+  } catch (e) { /* lock screen handles 401 */ }
+}
+
+async function saveSettings() {
+  const el = document.getElementById('settings-saved');
+  const body = {
+    quiet_enabled: document.getElementById('s-quiet').checked,
+    quiet_start:   document.getElementById('s-quiet-start').value,
+    quiet_end:     document.getElementById('s-quiet-end').value,
+  };
+  try {
+    const r = await fetch(API + '/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+    el.textContent  = r.ok ? 'Saved ✓' : 'Save failed';
+    el.style.color  = r.ok ? 'var(--green)' : 'var(--red)';
+  } catch (e) {
+    el.textContent = 'Save failed';
+    el.style.color = 'var(--red)';
+  }
+  setTimeout(() => { el.textContent = ''; }, 2500);
+}
+
+['s-quiet', 's-quiet-start', 's-quiet-end'].forEach(id =>
+  document.getElementById(id).addEventListener('change', saveSettings));
+
 // ── Photo lightbox ────────────────────────────────────────
 function openLightbox(src) {
   document.getElementById('lightbox-img').src = src;
@@ -890,6 +909,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('page-title').textContent = pages[page].title;
     if (page === 'stats')       renderStats();
     if (page === 'diagnostics') loadDiagnostics();
+    if (page === 'settings')    loadSettings();
   });
 });
 
@@ -906,6 +926,7 @@ function connectWS() {
       renderVisitStats();
       renderVisitsTable();
       showToast(data);
+      playDing();
     }
     if (type === 'visit_updated') {
       const idx = visits.findIndex(v => v.id === data.id);
@@ -914,6 +935,11 @@ function connectWS() {
       if (data.response) {
         showToast(data, `💬 Reply sent: "${data.response}"`);
       }
+    }
+    if (type === 'visit_deleted') {
+      visits = visits.filter(v => v.id !== data.id);
+      renderVisitStats();
+      renderVisitsTable();
     }
   };
 }
@@ -1011,7 +1037,7 @@ function renderVisitsTable() {
 
   const tbody = document.getElementById('visits-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No visits found</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No visits found</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(v => `
@@ -1046,8 +1072,21 @@ function renderVisitsTable() {
           <option value="Suspicious" ${v.tag==='Suspicious' ? 'selected' : ''}>Suspicious</option>
         </select>
       </td>
+      <td><button class="del-btn" onclick="deleteVisit(${v.id})" title="Delete visit">🗑</button></td>
     </tr>
   `).join('');
+}
+
+async function deleteVisit(id) {
+  if (!confirm('Delete this visit (and its photo)?')) return;
+  const r = await fetch(`${API}/api/visits/${id}`, {
+    method: 'DELETE', headers: authHeaders()
+  });
+  if (r.ok) {
+    visits = visits.filter(v => v.id !== id);
+    renderVisitStats();
+    renderVisitsTable();
+  }
 }
 
 async function onTagChange(id, sel) {

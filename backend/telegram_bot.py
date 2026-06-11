@@ -64,7 +64,7 @@ async def send_visit_notification(visit: dict) -> int | None:
         f"{headline}\n"
         f"🕐 {ts}\n"
         f"{visits_line}\n"
-        f"{'🔕 Silent mode — recorded only' if silent else ''}"
+        f"{'🔕 Quiet hours — delivered silently' if silent else ''}"
     ).strip()
 
     # Inline keyboard with two callback buttons
@@ -85,10 +85,11 @@ async def send_visit_notification(visit: dict) -> int | None:
             resp = await client.post(
                 f"{TELEGRAM_API}/sendPhoto",
                 json={
-                    "chat_id":      CHAT_ID,
-                    "photo":        full_url,
-                    "caption":      caption,
-                    "reply_markup": reply_markup,
+                    "chat_id":              CHAT_ID,
+                    "photo":                full_url,
+                    "caption":              caption,
+                    "reply_markup":         reply_markup,
+                    "disable_notification": bool(silent),
                 },
                 timeout=10,
             )
@@ -97,9 +98,10 @@ async def send_visit_notification(visit: dict) -> int | None:
             resp = await client.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
-                    "chat_id":      CHAT_ID,
-                    "text":         caption + "\n\n⚠️ No photo available",
-                    "reply_markup": reply_markup,
+                    "chat_id":              CHAT_ID,
+                    "text":                 caption + "\n\n⚠️ No photo available",
+                    "reply_markup":         reply_markup,
+                    "disable_notification": bool(silent),
                 },
                 timeout=10,
             )
