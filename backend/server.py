@@ -43,8 +43,10 @@ STORAGE_BUCKET       = "photos"
 # Empty value = gate disabled (e.g. local development).
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
 
-# Face recognition toggle — "0" disables matching entirely
-RECOGNITION_ENABLED = os.getenv("RECOGNITION_ENABLED", "1").strip() != "0"
+# Face recognition toggle — OFF unless explicitly enabled with
+# RECOGNITION_ENABLED=1. Keeping it off avoids the ~600 MB resident
+# model (Railway credit burn) while the team decides on the feature.
+RECOGNITION_ENABLED = os.getenv("RECOGNITION_ENABLED", "0").strip() == "1"
 
 def require_dashboard_key(x_dashboard_key: str = Header(default="")):
     if DASHBOARD_PASSWORD and x_dashboard_key != DASHBOARD_PASSWORD:
@@ -202,9 +204,11 @@ def auth_check():
 # Used to verify the hosting environment can run recognition at all.
 @app.get("/api/recognition/health", dependencies=[Depends(require_dashboard_key)])
 def recognition_health():
+    if not RECOGNITION_ENABLED:
+        return {"enabled": False, "note": "set RECOGNITION_ENABLED=1 to activate"}
     import recognition
     try:
-        return recognition.health()
+        return {"enabled": True, **recognition.health()}
     except Exception as e:
         raise HTTPException(500, f"recognition unavailable: {e!r}")
 

@@ -144,12 +144,12 @@ No ngrok. Webhook is permanently registered to Railway.
 
 ## What Comes After Step 5
 
-1. **Face recognition (V3) — IN PROGRESS, feasibility PROVEN:**
-   - Works on Railway: InsightFace `buffalo_s` (ONNX, CPU), loads in ~10 s, ~700 MB RSS, `GET /api/recognition/health` verifies it
-   - Done: `backend/recognition.py` (lazy-load, 512-d normalized embeddings, min det score 0.5); Supabase has **pgvector** + `visitors` + `visitor_embeddings` tables + `visits.visitor_id`; camera bumped to VGA; `railpack.json` installs OpenCV system libs (libgl1, libxcb1, …)
-   - Local validation: same-person match scored 0.54 on good frontal QVGA photos; bad angles scored low → store multiple embeddings per visitor, threshold ~0.4
-   - **Remaining:** matching logic in `create_visit` (embedding → pgvector nearest visitor → link or create), named Telegram messages ("Rami is at the door"), visitors API (list/rename), dashboard Visitors page
-   - Caveats: model re-downloads on each deploy (ephemeral disk → first recognition slow); watch Railway memory (~700 MB with model loaded)
+1. **Face recognition (V3) — BUILT but PARKED (off by default), team decision pending:**
+   - **Status:** full pipeline implemented and tested in the cloud: photo → embedding (InsightFace ONNX) → pgvector nearest-visitor match → visit linked → Telegram says "Rami is at the door!" / "Visitor #N" / "New visitor"; visitors API (list/rename/delete). Dashboard Visitors page NOT built yet.
+   - **Why parked:** (a) the resident model holds ~600 MB 24/7 → burns the Railway trial credit ~6× faster, risking the whole backend dying before demo day; (b) the small model (`buffalo_s`) failed to match the user's two QVGA test photos (similarity −0.01 vs 0.54 with `buffalo_l`) — accuracy needs the big model and/or the new VGA photos; (c) `buffalo_l` may OOM the container → crash-loop risk.
+   - **To enable (e.g. demo day):** Railway → Variables → `RECOGNITION_ENABLED=1` (optionally `FACE_MODEL=buffalo_l`, watch memory) → redeploy. That's all.
+   - **To remove permanently (if team decides):** delete `backend/recognition.py` + `backend/railpack.json`; remove the 5 face deps from `requirements.txt`; in `server.py` remove `RECOGNITION_ENABLED`, the lifespan warmup block, the recognition block in `create_visit`, the `/api/recognition/health` endpoint, the Visitors API section, and `visitor_*` fields in `row_to_visit`/`get_visits` JOIN; in `telegram_bot.py` restore the simple caption headline; in Supabase run: `ALTER TABLE visits DROP COLUMN visitor_id; DROP TABLE visitor_embeddings; DROP TABLE visitors;` (optionally `DROP EXTENSION vector;`). Camera VGA bump can stay (better photos regardless).
+   - Accuracy note for the future: real mounted-at-door VGA photos + `buffalo_l` + threshold ~0.4, multiple embeddings per visitor (already implemented, max 5).
 2. **OLED screen feature** (when HW arrives): new endpoint `GET /api/visits/{id}/response` + ESP32 polls it and shows the reply to the visitor
 3. **Audio** (when HW arrives): buzzer tones vs voice — open team decision
 4. **Settings API** — `GET/POST /api/settings`, wire to dashboard
