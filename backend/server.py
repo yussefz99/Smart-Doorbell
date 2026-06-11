@@ -182,6 +182,17 @@ def auth_check():
     return {"ok": True}
 
 
+# GET /api/recognition/health — load the face model, report memory.
+# Used to verify the hosting environment can run recognition at all.
+@app.get("/api/recognition/health", dependencies=[Depends(require_dashboard_key)])
+def recognition_health():
+    import recognition
+    try:
+        return recognition.health()
+    except Exception as e:
+        raise HTTPException(500, f"recognition unavailable: {e!r}")
+
+
 # GET /api/visits — all visits, newest first
 @app.get("/api/visits", dependencies=[Depends(require_dashboard_key)])
 def get_visits():
