@@ -144,10 +144,15 @@ No ngrok. Webhook is permanently registered to Railway.
 
 ## What Comes After Step 5
 
-1. **OLED screen feature** (when HW arrives): new endpoint `GET /api/visits/{id}/response` + ESP32 polls it and shows the reply to the visitor
-2. **Audio** (when HW arrives): buzzer tones vs voice — open team decision
-3. **Settings API** — `GET/POST /api/settings`, wire to dashboard
-4. **V3** — DeepFace visitor recognition
+1. **Face recognition (V3) — IN PROGRESS, feasibility PROVEN:**
+   - Works on Railway: InsightFace `buffalo_s` (ONNX, CPU), loads in ~10 s, ~700 MB RSS, `GET /api/recognition/health` verifies it
+   - Done: `backend/recognition.py` (lazy-load, 512-d normalized embeddings, min det score 0.5); Supabase has **pgvector** + `visitors` + `visitor_embeddings` tables + `visits.visitor_id`; camera bumped to VGA; `railpack.json` installs OpenCV system libs (libgl1, libxcb1, …)
+   - Local validation: same-person match scored 0.54 on good frontal QVGA photos; bad angles scored low → store multiple embeddings per visitor, threshold ~0.4
+   - **Remaining:** matching logic in `create_visit` (embedding → pgvector nearest visitor → link or create), named Telegram messages ("Rami is at the door"), visitors API (list/rename), dashboard Visitors page
+   - Caveats: model re-downloads on each deploy (ephemeral disk → first recognition slow); watch Railway memory (~700 MB with model loaded)
+2. **OLED screen feature** (when HW arrives): new endpoint `GET /api/visits/{id}/response` + ESP32 polls it and shows the reply to the visitor
+3. **Audio** (when HW arrives): buzzer tones vs voice — open team decision
+4. **Settings API** — `GET/POST /api/settings`, wire to dashboard
 
 ---
 
