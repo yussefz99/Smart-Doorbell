@@ -124,7 +124,8 @@ class ConnectionManager:
         self.active.append(ws)
 
     def disconnect(self, ws: WebSocket):
-        self.active.remove(ws)
+        if ws in self.active:
+            self.active.remove(ws)
 
     async def broadcast(self, payload: dict):
         import json
@@ -136,6 +137,11 @@ class ConnectionManager:
                 dead.append(ws)
         for ws in dead:
             self.active.remove(ws)
+
+    async def broadcast_presence(self):
+        """Tell every connected dashboard how many dashboards are open.
+        Lets a user notice when a second device is also signed in."""
+        await self.broadcast({"type": "presence", "data": {"count": len(self.active)}})
 
 manager = ConnectionManager()
 
@@ -572,11 +578,15 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.close(code=1008)
         return
     await manager.connect(ws)
+    await manager.broadcast_presence()   # announce the new device to everyone
     try:
         while True:
             await ws.receive_text()   # keep connection alive
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(ws)
+        await manager.broadcast_presence()   # someone left — update the count
 
 
 # ── Telegram webhook ─────────────────────────────────────────

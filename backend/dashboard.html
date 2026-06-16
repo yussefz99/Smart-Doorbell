@@ -83,6 +83,9 @@ body {
 }
 .conn-dot.online { background: var(--green); }
 
+/* Live count of dashboards currently connected (presence indicator) */
+.presence-warn { color: var(--yellow); font-weight: 600; }
+
 nav { padding: 10px 8px; flex: 1; }
 .nav-label {
   font-size: 10px;
@@ -608,6 +611,9 @@ select.setting-select {
     <div class="conn-dot" id="conn-dot"></div>
     <span id="conn-label">Connecting…</span>
   </div>
+  <div class="sidebar-conn" id="presence-bar">
+    <span id="presence-label">—</span>
+  </div>
   <nav>
     <div class="nav-label">Monitor</div>
     <div class="nav-item active" data-page="visits">
@@ -917,7 +923,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 function connectWS() {
   const ws = new WebSocket(WS + (DASH_KEY ? '?key=' + encodeURIComponent(DASH_KEY) : ''));
   ws.onopen  = () => setConn(true);
-  ws.onclose = () => { setConn(false); setTimeout(connectWS, 3000); };
+  ws.onclose = () => { setConn(false); setPresence(null); setTimeout(connectWS, 3000); };
   ws.onerror = () => ws.close();
   ws.onmessage = e => {
     const { type, data } = JSON.parse(e.data);
@@ -941,7 +947,26 @@ function connectWS() {
       renderVisitStats();
       renderVisitsTable();
     }
+    if (type === 'presence') {
+      setPresence(data.count);
+    }
   };
+}
+
+// Show how many dashboards are connected right now. More than one means
+// someone else (or another of your tabs) is also signed in.
+function setPresence(count) {
+  const bar   = document.getElementById('presence-bar');
+  const label = document.getElementById('presence-label');
+  bar.classList.remove('presence-warn');
+  if (count == null) {
+    label.textContent = '—';
+  } else if (count > 1) {
+    bar.classList.add('presence-warn');
+    label.textContent = `👥 ${count} devices connected`;
+  } else {
+    label.textContent = '👤 Only this device';
+  }
 }
 
 function setConn(online) {
