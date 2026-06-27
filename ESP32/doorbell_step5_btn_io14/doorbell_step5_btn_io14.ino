@@ -116,11 +116,21 @@ void blinkFlash(int times);
 void setFlash(bool on);
 void showStatus(const String& line1, const String& line2);
 void showReply(const String& text);
-void waitForHomeownerReply(int visitId);
+String fetchReply(int visitId);
 
 unsigned int visitCount      = 0;   // delivered visits this session (shown on OLED)
 int          lastVisitId     = -1;  // id of the most recent visit (for reply polling)
 String       lastVisitorName = "";  // recognised name ("" = unknown / recognition off)
+
+// Non-blocking watch for the homeowner's reply, handled in loop(). This lets a
+// reply that arrives later — e.g. a typed message — still reach the OLED,
+// instead of only catching it in a short blocking window after the press.
+bool          awaitingReply  = false;
+int           awaitVisitId   = -1;
+unsigned long awaitDeadline  = 0;
+unsigned long lastReplyPoll  = 0;
+#define REPLY_WATCH_MS   180000UL   // keep watching up to 3 min after a visit
+#define REPLY_POLL_MS      4000UL   // poll the backend this often
 
 // ─────────────────────────────────────────────────────────────
 void setup() {
@@ -207,6 +217,26 @@ void loop() {
     sendHeartbeat();
   }
 
+  // Background: watch for the homeowner's reply after a visit, so a reply
+  // that arrives later (e.g. a typed message) still reaches the OLED.
+  if (awaitingReply) {
+    if (millis() > awaitDeadline) {
+      awaitingReply = false;
+      Serial.println("[Reply] No reply within timeout.");
+      showStatus("Ready", WiFi.localIP().toString());
+    } else if (millis() - lastReplyPoll >= REPLY_POLL_MS) {
+      lastReplyPoll = millis();
+      String reply = fetchReply(awaitVisitId);
+      if (reply.length() > 0) {
+        awaitingReply = false;
+        Serial.println("[Reply] Homeowner: " + reply);
+        showReply(reply);
+        delay(8000);   // hold the reply for the visitor to read
+        showStatus("Ready", WiFi.localIP().toString());
+      }
+    }
+  }
+
   delay(10);
 }
 
@@ -257,16 +287,21 @@ void triggerDoorbell() {
     else
       showStatus("New visitor", "Hello!");
     delay(3000);
-    // Wait for the homeowner's Telegram reply and show it to the visitor.
-    waitForHomeownerReply(lastVisitId);
+    // Start watching for the homeowner's reply in the background (loop()),
+    // so a reply that arrives later — e.g. a typed message — still shows.
+    showStatus("Please wait", "for a reply...");
+    awaitingReply = true;
+    awaitVisitId  = lastVisitId;
+    awaitDeadline = millis() + REPLY_WATCH_MS;
+    lastReplyPoll = millis();
   } else {
     Serial.println("[ERROR] Delivery failed.");
     showStatus("Failed", "Try again");
     blinkFlash(6);
+    delay(3000);
+    showStatus("Ready", WiFi.localIP().toString());
   }
 
-  delay(3000);   // hold the last message so the visitor can read it
-  showStatus("Ready", WiFi.localIP().toString());
   Serial.println("[OK] Done. Waiting for next press...\n");
 }
 
@@ -312,65 +347,47 @@ void showReply(const String& text) {
   oled.sendBuffer();
 }
 
-// ── Wait for the homeowner's reply, show it to the visitor ────
-// Polls the new backend endpoint /api/visits/<id>/response for the
-// reply the homeowner taps in Telegram ("On my way" / "Not home")
-// and displays it on the OLED. Gives up after a timeout.
-void waitForHomeownerReply(int visitId) {
-  if (visitId < 0 || strlen(BACKEND_URL) == 0) return;
-
-  showStatus("Please wait", "for a reply...");
+// ── Poll the backend once for the homeowner's reply ───────────
+// Returns the reply text the homeowner tapped or typed in Telegram,
+// or "" if there's none yet (or on error). Called repeatedly from loop()
+// so a late/typed reply still reaches the OLED.
+String fetchReply(int visitId) {
+  if (visitId < 0 || strlen(BACKEND_URL) == 0) return "";
 
   String host = String(BACKEND_URL);
   host.replace("https://", "");
   host.replace("http://",  "");
   String path = "/api/visits/" + String(visitId) + "/response";
 
-  unsigned long deadline = millis() + 45000UL;   // wait up to 45 s
-  while (millis() < deadline) {
-    WiFiClientSecure client;
-    client.setInsecure();
-    client.setTimeout(10);
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setTimeout(10);
+  if (!client.connect(host.c_str(), 443)) return "";
 
-    if (client.connect(host.c_str(), 443)) {
-      client.println("GET " + path + " HTTP/1.1");
-      client.println("Host: " + host);
-      client.println("X-Device-Key: " + String(DEVICE_KEY));
-      client.println("Connection: close");
-      client.println();
+  client.println("GET " + path + " HTTP/1.1");
+  client.println("Host: " + host);
+  client.println("X-Device-Key: " + String(DEVICE_KEY));
+  client.println("Connection: close");
+  client.println();
 
-      String resp;
-      unsigned long t = millis();
-      while (client.connected() && millis() - t < 8000) {
-        while (client.available()) { resp += (char)client.read(); t = millis(); }
-      }
-      client.stop();
-
-      // Body: {"id":N,"response":"On my way"}  or  {"id":N,"response":null}
-      int c = resp.indexOf("\"response\":");
-      if (c >= 0) {
-        int p = c + 11;
-        while (p < (int)resp.length() && resp[p] == ' ') p++;
-        if (p < (int)resp.length() && resp[p] == '"') {   // a real reply
-          int q = resp.indexOf('"', p + 1);
-          if (q > p) {
-            String reply = resp.substring(p + 1, q);
-            if (reply.length() > 0) {
-              Serial.println("[Reply] Homeowner: " + reply);
-              showReply(reply);            // word-wrapped (handles typed replies)
-              delay(8000);   // keep the reply on screen for the visitor to read
-              return;
-            }
-          }
-        }
-        // value is null → no reply yet, keep polling
-      }
-    }
-    delay(3000);   // poll every 3 s
+  String resp;
+  unsigned long t = millis();
+  while (client.connected() && millis() - t < 8000) {
+    while (client.available()) { resp += (char)client.read(); t = millis(); }
   }
+  client.stop();
 
-  Serial.println("[Reply] No reply within timeout.");
-  showStatus("No reply yet", "");
+  // Body: {"id":N,"response":"On my way"} or {"id":N,"response":null}
+  int c = resp.indexOf("\"response\":");
+  if (c >= 0) {
+    int p = c + 11;
+    while (p < (int)resp.length() && resp[p] == ' ') p++;
+    if (p < (int)resp.length() && resp[p] == '"') {   // a real reply, not null
+      int q = resp.indexOf('"', p + 1);
+      if (q > p) return resp.substring(p + 1, q);
+    }
+  }
+  return "";
 }
 
 // ── WiFi ──────────────────────────────────────────────────────
