@@ -135,12 +135,32 @@
 
 ---
 
+## Current Status
+
+V1 is **complete and working on real hardware** (See-Sys CS-CAM / ESP32-CAM).
+Added since V1 (firmware: `ESP32/doorbell_step5_btn_io14/`):
+
+- **On-device OLED** (128×64 SH1106 I²C, SDA=IO14 / SCL=IO15) showing live
+  status, a visitor greeting, and the homeowner's reply.
+- **Homeowner reply on the door** — tap a Telegram button *or* reply to the
+  photo with free text; it appears on the OLED (word-wrapped).
+- **Visitor greeting** — "Welcome, [Name]" when recognised; falls back to
+  "New visitor" (recognition is OFF for the demo).
+- **SEC-03** — firmware sends `X-Device-Key` on every backend request.
+- **Wiring docs** — `Documentation/connection diagram/WIRING.md` + `.svg`.
+- **Audio response dropped** — pin budget (camera + OLED leaves no I²S pins).
+
+Work now follows the 4-phase roadmap in `.planning/ROADMAP.md`.
+
 ## Next Actions (in order)
 
-1. **Team decision** — buzzer tones vs voice playback for visitor audio response
-2. ~~Build Telegram webhook~~ ✅ Done
-3. **Build settings API** — save/load settings from backend, wire to dashboard
-4. **Hardware arrives** → test WiFi sketch → test camera → complete V1
-5. **Connect ESP32 to backend** — POST visits + heartbeat
-6. **Cloud deployment** — Railway or Firebase (decide after hardware testing)
-7. **V3** — add DeepFace visitor recognition
+1. ~~Settings API + dashboard wiring~~ ✅ Done (Phase 1)
+2. ~~Complete V1 doorbell loop on hardware~~ ✅ Done
+3. **Agree the device-key value** (Yussef ↔ Rami) → `secrets.h` `SECRET_DEVICE_KEY`
+   must match Railway `DEVICE_SECRET`.
+4. **DEMO-01** — flash `doorbell_step5_btn_io14`, verify the full real-button
+   round-trip (see `Documentation/DEMO-RUNBOOK.md`).
+5. **Backend hardening** (Rami) — SEC-01/02/04/05/06, REL-01 (also creates the
+   recognition tables).
+6. **Recognition go/no-go** (Rami spike) — stays OFF unless it proves viable.
+7. **Demo rehearsal** — run the runbook end-to-end, including recovery steps.
