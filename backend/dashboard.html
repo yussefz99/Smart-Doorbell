@@ -653,7 +653,6 @@ select.setting-select {
           <div class="filter-bar">
             <button class="filter-btn active" data-filter="all">All</button>
             <button class="filter-btn" data-filter="button">Button</button>
-            <button class="filter-btn" data-filter="motion">Motion</button>
             <button class="filter-btn" data-filter="untagged">Untagged</button>
           </div>
         </div>
@@ -683,7 +682,6 @@ select.setting-select {
           <div class="toggle-bar" id="bar-toggle">
             <button class="toggle-btn active" data-set="total">All</button>
             <button class="toggle-btn" data-set="button">Button</button>
-            <button class="toggle-btn" data-set="motion">Motion</button>
           </div>
           <canvas id="bar-chart" height="180"></canvas>
         </div>
@@ -693,7 +691,6 @@ select.setting-select {
           <div class="toggle-bar" id="heat-toggle">
             <button class="toggle-btn active" data-set="total">All</button>
             <button class="toggle-btn" data-set="button">Button</button>
-            <button class="toggle-btn" data-set="motion">Motion</button>
           </div>
           <div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
         </div>
@@ -1025,14 +1022,14 @@ function renderVisitStats() {
   const week  = new Date(Date.now() - 7*86400000).toISOString();
   const todayN  = visits.filter(v => v.timestamp.startsWith(today)).length;
   const weekN   = visits.filter(v => v.timestamp > week).length;
-  const buttonN = visits.filter(v => v.trigger === 'button').length;
-  const motionN = visits.filter(v => v.trigger === 'motion').length;
+  const buttonN  = visits.filter(v => v.trigger === 'button').length;
+  const repliesN = visits.filter(v => v.response && v.response.length).length;
 
   document.getElementById('visit-stats').innerHTML = `
     ${sc('Today\'s Visits',  todayN,  '', 'accent')}
     ${sc('This Week',        weekN,   '', 'green')}
     ${sc('Button Presses',   buttonN, '', 'accent')}
-    ${sc('Motion Triggers',  motionN, '', 'yellow')}
+    ${sc('Replies',          repliesN,'', 'yellow')}
   `;
 }
 
@@ -1130,7 +1127,6 @@ async function renderStats() {
   document.getElementById('stats-cards').innerHTML = `
     ${sc('Total Visits',    s.total_visits,   '', 'accent')}
     ${sc('Button Presses',  s.button_presses, '', 'green')}
-    ${sc('Motion Triggers', s.motion_triggers,'', 'yellow')}
     ${sc('Response Rate',   s.response_rate+'%', '', s.response_rate > 50 ? 'green' : 'yellow')}
   `;
 
