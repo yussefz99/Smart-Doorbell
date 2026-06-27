@@ -57,8 +57,8 @@
   5. The model runs within the hosting memory budget without OOM; tested with 2–3 enrolled people across multiple visits, with accuracy + threshold documented
   6. When a known visitor is recognized, their name is shown on the door OLED (e.g., "Welcome, [Name]"), and the OLED text-reply behavior still works
 **Plans**: 3 plans (Rami / backend-only; REC-03 frontend + REC-06 firmware are teammate-owned/Yussef; REC-01 spike already GO)
-- [ ] 03-01-pin-recognition-deps-PLAN.md — Pin the InsightFace/ONNXRuntime/OpenCV/psutil stack to exact versions (REC-02 finish)
-- [ ] 03-02-response-visitor-name-PLAN.md — Add visitor_name to GET /api/visits/{id}/response for the OLED greeting (REC-06 backend, handshake #2)
+- [x] 03-01-pin-recognition-deps-PLAN.md — Pin the InsightFace/ONNXRuntime/OpenCV/psutil stack to exact versions (REC-02 finish)
+- [x] 03-02-response-visitor-name-PLAN.md — Add visitor_name to GET /api/visits/{id}/response for the OLED greeting (REC-06 backend, handshake #2)
 - [ ] 03-03-memory-accuracy-enablement-PLAN.md — Validate buffalo_s memory + accuracy/threshold and make the Railway enablement decision (REC-04, REC-05)
 
 ### Phase 4: Demo Readiness + Documentation
@@ -79,7 +79,7 @@
 |-------|----------------|--------|-----------|
 | 1. Settings Wiring | 0/? | Not started | - |
 | 2. Security + Reliability Hardening | 3/3 | Complete   | 2026-06-27 |
-| 3. Visitor Recognition | 0/3 | Planned | - |
+| 3. Visitor Recognition | 2/3 | In Progress|  |
 | 4. Demo Readiness + Documentation | 0/? | Not started | - |
 
 ---
