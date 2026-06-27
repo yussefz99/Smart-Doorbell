@@ -512,15 +512,21 @@ async def create_visit(
 
 # GET /api/visits/:id/response — lightweight poll for the doorbell device.
 # The ESP32 calls this after a visit to show the homeowner's reply
-# ("On my way" / "Not home") to the visitor on its OLED display.
+# ("On my way" / "Not home") to the visitor on its OLED display, and the
+# recognized visitor_name (when known) so the OLED can greet by name (REC-06).
 # Auth: requires X-Device-Key (the firmware sends it). Enforced only when
 # DEVICE_SECRET is set, so it stays open in local/dev with no secret.
 @app.get("/api/visits/{visit_id}/response", dependencies=[Depends(require_device_key)])
 def get_visit_response(visit_id: int):
-    row = db_fetchone("SELECT id, response FROM visits WHERE id=%s", (visit_id,))
+    row = db_fetchone(
+        """SELECT visits.id, visits.response, visitors.name AS visitor_name
+           FROM visits LEFT JOIN visitors ON visitors.id = visits.visitor_id
+           WHERE visits.id=%s""",
+        (visit_id,)
+    )
     if not row:
         raise HTTPException(404, "visit not found")
-    return {"id": row["id"], "response": row["response"]}
+    return {"id": row["id"], "response": row["response"], "visitor_name": row["visitor_name"]}
 
 
 # PATCH /api/visits/:id/tag — dashboard sets a tag
