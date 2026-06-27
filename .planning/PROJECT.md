@@ -7,9 +7,8 @@ button, the device captures a photo and uploads it to a FastAPI backend, which
 sends the homeowner a Telegram notification with inline reply buttons. The
 homeowner's reply flows back through a Telegram webhook, and every visit —
 including the reply — appears live on a web dashboard. The doorbell also shows
-the homeowner's reply back to the visitor on a small OLED screen, and can play
-a voice note the homeowner records in Telegram through a small speaker. With face
-recognition enabled, returning visitors can be identified by name. This is a
+the homeowner's reply — and, when face recognition is enabled, a greeting with the
+returning visitor's name — to the visitor on a small OLED screen. This is a
 university capstone project (Group 15), graded on **both a live demo and a
 written report/poster**.
 
@@ -47,8 +46,7 @@ reply → dashboard loop must work.
 - [ ] Telegram webhook callback parser hardened (bounds-check on `reply:` split → no IndexError/500 retries)
 - [ ] `init_db()` creates all tables it depends on (guards so enabling recognition can't crash visit creation)
 - [ ] `TRIGGER_ON_BOOT` set to `false` now that the GPIO 13 button is soldered + real-button demo flow verified end-to-end
-- [ ] Visitor voice playback: the homeowner's Telegram voice note is transcoded backend-side (Opus→MP3) and played on a MAX98357A + speaker at the door (new feature for this milestone)
-- [ ] Face recognition working + tested: returning visitors identified by name (backend enables `recognition.py`; names shown in dashboard + Telegram) — *if* it proves feasible on the real camera (a feasibility spike gates this)
+- [ ] Face recognition working + tested: returning visitors identified by name — shown in the dashboard, Telegram, **and on the door OLED** — by enabling `recognition.py`, *if* it proves feasible on the real camera (a feasibility spike gates this)
 - [ ] Docs reconciled (README / PLAN / PROGRESS match actual code state) + a clean demo runbook for the live demo
 
 ### Out of Scope
@@ -57,7 +55,7 @@ reply → dashboard loop must work.
 
 - ~~V3 face recognition~~ — **moved into scope 2026-06-27** as Phase 4 (Visitor Recognition). Prior testing scored ~−0.01 similarity (no usable match) on real photos, so a feasibility spike gates this phase — if accuracy can't be achieved on the ESP32-CAM, it stays `RECOGNITION_ENABLED=0` (a broken "New visitor every press" is worse than none; OFF remains a valid ship state).
 - V4 motion detection (PIR) — hardware-dependent, not core to the doorbell loop.
-- ~~V4 audio response to visitor (MAX98357A + speaker)~~ — **moved into scope 2026-06-27** as Phase 3 (Voice Notes): the homeowner records a Telegram voice note, the backend transcodes it, and the doorbell plays it on the speaker. Hardware is on hand.
+- V4 audio response to visitor (MAX98357A + speaker) — **out of scope again 2026-06-27**: it can't share the ESP32-CAM pins with the OLED, and the OLED won (it also displays recognized visitor names). Hardware is on hand for a future board revision.
 - V4 offline SPIFFS buffering — reliability nicety, not required for a controlled demo.
 - Flutter app (`flutter_app/`) — placeholder only; the web dashboard is the UI for this submission.
 
@@ -74,7 +72,7 @@ reply → dashboard loop must work.
 - **Tech stack**: Frozen — FastAPI + Supabase + Railway (backend), Arduino/ESP32-CAM (firmware), vanilla JS (dashboard). No rewrites; keep tested code.
 - **Deliverable**: Must produce a working **live demo** AND a written **report/poster** — both are graded.
 - **Hardware**: Single AI Thinker ESP32-CAM on a CS-CAM carrier; GPIO 13 button soldered and working; OLED on IO14/IO15.
-- **Hardware (audio)**: MAX98357A I2S mono amp (Vin 2.5–5.5 V, ~9 dB default gain, 3 W) + 4 Ω 3 W speaker — on hand. Needs 3 free I2S GPIOs (LRC/BCLK/DIN) + 5 V/GND; pin budget is tight, so the free pins must be confirmed on the board. Loud playback may need a bulk capacitor on Vin to avoid brown-out.
+- **Hardware (audio, shelved)**: MAX98357A amp + 4 Ω 3 W speaker are on hand but NOT used — they can't share pins with the OLED on the ESP32-CAM (only D2/D4/D12 remain, all strapping/flash pins), and the OLED was kept. Available for a future board revision.
 - **Hosting (recognition)**: InsightFace model is ~150 MB (`buffalo_s`) to ~600 MB (`buffalo_l`); the Railway free tier (~512 MB) may OOM with `buffalo_l`. Recognition feasibility AND fit-on-Railway must both be confirmed — a Railway plan bump may be required.
 - **Budget**: Railway trial credit (~$5/30 days) and Supabase free tier — keep the service online through demo day.
 - **Security**: Lab-prototype bar — close the cheap, high-value gaps (endpoint auth, webhook token); cert pinning and connection pooling are explicitly deferred.
@@ -89,9 +87,8 @@ reply → dashboard loop must work.
 | Add lightweight shared-secret auth, defer cert pinning / DB pooling | High value / low effort vs. low marginal value for a lab demo | — Pending |
 | Bootstrap GSD via `~/.claude/get-shit-done` symlink to plugin cache 2.45.9 | `/plugin` unavailable in VS Code; symlink unblocks the runtime | ⚠️ Revisit (reinstall from desktop app later) |
 | Demo firmware is `doorbell_step5_btn_io14` (button + OLED reply) | Teammate built visitor-reply OLED; richer demo than the LED-only sketch | — Pending |
-| Add Telegram voice-note playback (Phase 3) before finalizing | Richer two-way interaction; MAX98357A + 4 Ω speaker on hand | — Pending |
-| Transcode voice notes Opus→MP3 on the backend, not the ESP32 | ESP32 can't realistically decode Opus; keeps firmware simple | — Pending |
-| De-risk audio with a spike before planning Phase 3 | I2S pin budget + playback are the project's biggest unknowns | — Pending |
+| Chose the OLED over the speaker (they can't coexist on the board) | No clean I²S pins free while the OLED holds D14/D15; OLED also displays recognized names, pairing it with recognition | ✓ Good |
+| Use the OLED to display recognized visitor names | OLED + recognition reinforce each other; richer than either alone | — Pending |
 | Add face recognition (Phase 4), gated by a feasibility spike | Team wants name-ID of returning visitors; but it failed accuracy testing before (~−0.01) | — Pending |
 | Keep recognition OFF if it can't hit usable accuracy on the real camera | A broken "New visitor every press" demo is worse than none; OFF is a valid ship state | — Pending |
 
@@ -113,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-27 after adding Phase 4 (face recognition)*
+*Last updated: 2026-06-27 — dropped the speaker (pin budget); focusing on face recognition (now Phase 3, with OLED name display)*

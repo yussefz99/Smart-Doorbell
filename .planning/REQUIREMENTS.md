@@ -29,13 +29,6 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 
 - [ ] **DEMO-01**: `TRIGGER_ON_BOOT` is set to `false` in `doorbell_step5_btn_io14` and the doorbell fires on a real GPIO 13 button press, verified end-to-end (press → photo → Telegram notification → reply → dashboard update → reply shown on the visitor OLED)
 
-### Audio / Voice
-
-- [ ] **AUD-01**: Homeowner records a voice note in Telegram as a reply to the doorbell photo message; the backend webhook captures the `voice` file and links it to that visit (via `reply_to_message` → `telegram_message_id`)
-- [ ] **AUD-02**: Backend transcodes the voice note (OGG/Opus) to a low-bitrate MP3 with `ffmpeg`, stores it in Supabase Storage, and exposes an `audio_url` on the visit (returned by `GET /api/visits/{id}/response`)
-- [ ] **AUD-03**: The ESP32 detects a new `audio_url` via the existing reply poll, downloads the clip, and plays it clearly through the MAX98357A + speaker over I2S; if there is no voice note, nothing plays and the OLED text reply still works
-- [ ] **AUD-04**: The MAX98357A is wired to free ESP32 I2S pins (LRC/BCLK/DIN + 5 V/GND) without breaking the camera, OLED (IO14/15), or button (IO13); the final pin map is documented
-
 ### Recognition
 
 - [ ] **REC-01** (spike gate): Face recognition produces *usable* similarity scores on real ESP32-CAM doorbell photos — same-person clearly higher than different-person, and a face is actually detected — with a chosen model (`buffalo_s`/`buffalo_l`) and detector settings; a go/no-go is documented. If no usable accuracy is reachable, recognition stays OFF and Phase 4 stops here.
@@ -43,6 +36,7 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 - [ ] **REC-03**: The homeowner can register/name a visitor from the dashboard, and subsequent visits by that person are labeled with the name in both the dashboard and the Telegram notification
 - [ ] **REC-04**: Recognition runs within the hosting memory budget — model choice + Railway plan confirmed to not OOM
 - [ ] **REC-05**: End-to-end recognition is tested with at least 2–3 enrolled people across multiple visits; measured accuracy and the chosen threshold are documented
+- [ ] **REC-06**: When a returning visitor is recognized, their name is shown on the door OLED (e.g., "Welcome, [Name]"); the existing OLED text-reply behavior still works
 
 ### Documentation
 
@@ -55,7 +49,7 @@ Acknowledged but deferred — not in this submission's roadmap.
 
 ### Recognition
 
-- *(Recognition promoted to v1 — now Phase 4, see REC-01…05 above.)*
+- *(Recognition promoted to v1 — now Phase 3, see REC-01…06 above.)*
 
 ### Hardening
 
@@ -68,9 +62,9 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| ~~V3 face recognition~~ | **Moved into scope 2026-06-27** — now Phase 4 (REC-01…05), gated by a feasibility spike; stays OFF only if the spike fails |
+| ~~V3 face recognition~~ | **Moved into scope 2026-06-27** — now Phase 3 (REC-01…06), gated by a feasibility spike; stays OFF only if the spike fails |
 | V4 motion detection (PIR) | Hardware-dependent; not core to the doorbell loop |
-| ~~V4 audio response (MAX98357A + speaker)~~ | **Moved into scope 2026-06-27** — now Phase 3 (Voice Notes), see AUD-01…04 |
+| V4 audio response / speaker (MAX98357A) | Pin budget — can't coexist with the OLED on the ESP32-CAM; kept the OLED (which also shows recognized names). Hardware on hand for a future revision |
 | V4 offline SPIFFS buffering | Reliability nicety; not required for a controlled demo |
 | Flutter app | Placeholder only; web dashboard is the submission UI |
 | ESP32 TLS cert pinning | Lab-prototype bar; deferred to v2 (HARD-01) |
@@ -90,23 +84,20 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 | SEC-06 | Phase 2 | Pending |
 | REL-01 | Phase 2 | Pending |
 | DEMO-01 | Phase 2 | Pending |
-| AUD-01 | Phase 3 | Pending |
-| AUD-02 | Phase 3 | Pending |
-| AUD-03 | Phase 3 | Pending |
-| AUD-04 | Phase 3 | Pending |
-| REC-01 | Phase 4 | Pending |
-| REC-02 | Phase 4 | Pending |
-| REC-03 | Phase 4 | Pending |
-| REC-04 | Phase 4 | Pending |
-| REC-05 | Phase 4 | Pending |
-| DOC-01 | Phase 5 | Pending |
-| DOC-02 | Phase 5 | Pending |
+| REC-01 | Phase 3 | Pending |
+| REC-02 | Phase 3 | Pending |
+| REC-03 | Phase 3 | Pending |
+| REC-04 | Phase 3 | Pending |
+| REC-05 | Phase 3 | Pending |
+| REC-06 | Phase 3 | Pending |
+| DOC-01 | Phase 4 | Pending |
+| DOC-02 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 21 total
-- Mapped to phases: 21
+- v1 requirements: 18 total
+- Mapped to phases: 18
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-27*
-*Last updated: 2026-06-27 after adding Phase 4 (face recognition) — added REC-01…05*
+*Last updated: 2026-06-27 — dropped the speaker (pin budget); recognition is now Phase 3 (REC-01…06, incl. OLED name display)*
