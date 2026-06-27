@@ -24,8 +24,9 @@
 // SH1106 (common on 1.3"): comment the SSD1306 line, uncomment SH1106.
 #define OLED_SDA 14
 #define OLED_SCL 15
-U8G2_SSD1306_128X64_NONAME_F_SW_I2C oled(U8G2_R0, OLED_SCL, OLED_SDA, U8X8_PIN_NONE);
-// U8G2_SH1106_128X64_NONAME_F_SW_I2C oled(U8G2_R0, OLED_SCL, OLED_SDA, U8X8_PIN_NONE);
+#define OLED_X    4   // horizontal text offset (px). Increase = shift text right.
+// U8G2_SSD1306_128X64_NONAME_F_SW_I2C oled(U8G2_R0, OLED_SCL, OLED_SDA, U8X8_PIN_NONE);
+U8G2_SH1106_128X64_NONAME_F_SW_I2C oled(U8G2_R0, OLED_SCL, OLED_SDA, U8X8_PIN_NONE);
 
 // ── Credentials ──────────────────────────────────────────────
 // Real values live in secrets.h (gitignored — never committed).
@@ -256,9 +257,9 @@ void triggerDoorbell() {
 void showStatus(const String& line1, const String& line2) {
   oled.clearBuffer();
   oled.setFont(u8g2_font_7x14B_tr);
-  oled.drawStr(0, 16, line1.c_str());
+  oled.drawStr(OLED_X, 16, line1.c_str());
   oled.setFont(u8g2_font_6x12_tr);
-  oled.drawStr(0, 40, line2.c_str());
+  oled.drawStr(OLED_X, 40, line2.c_str());
   oled.sendBuffer();
 }
 
@@ -307,6 +308,7 @@ void waitForHomeownerReply(int visitId) {
             if (reply.length() > 0) {
               Serial.println("[Reply] Homeowner: " + reply);
               showStatus(reply, "- homeowner");
+              delay(8000);   // keep the reply on screen for the visitor to read
               return;
             }
           }
