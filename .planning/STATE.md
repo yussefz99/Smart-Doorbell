@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-06-27T15:41:34.070Z"
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State: Smart Doorbell — Group 15
 
 **Last updated:** 2026-06-27
@@ -25,6 +39,7 @@
 | Phase Progress | 0% |
 
 **Overall Progress:**
+
 ```
 Phase 1 [          ] 0%
 Phase 2 [          ] 0%
