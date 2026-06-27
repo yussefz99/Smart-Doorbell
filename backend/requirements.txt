@@ -5,8 +5,9 @@ python-dotenv==1.0.0
 httpx==0.27.0
 psycopg2-binary==2.9.10
 
-# Face recognition (V3)
-insightface>=1.0
-onnxruntime>=1.20
-opencv-python-headless>=4.11
-psutil>=6
+# Face recognition (V3) — pinned to the exact versions validated in the REC-01 spike
+insightface==1.0.1
+onnxruntime==1.27.0
+opencv-python-headless==4.13.0.92
+psutil==7.2.2
+numpy==2.4.6
