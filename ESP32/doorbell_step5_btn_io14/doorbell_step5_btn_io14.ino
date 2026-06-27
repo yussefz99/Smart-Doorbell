@@ -106,10 +106,12 @@ void triggerDoorbell();
 void blinkFlash(int times);
 void setFlash(bool on);
 void showStatus(const String& line1, const String& line2);
+void showReply(const String& text);
 void waitForHomeownerReply(int visitId);
 
-unsigned int visitCount  = 0;   // delivered visits this session (shown on OLED)
-int          lastVisitId = -1;  // id of the most recent visit (for reply polling)
+unsigned int visitCount      = 0;   // delivered visits this session (shown on OLED)
+int          lastVisitId     = -1;  // id of the most recent visit (for reply polling)
+String       lastVisitorName = "";  // recognised name ("" = unknown / recognition off)
 
 // ─────────────────────────────────────────────────────────────
 void setup() {
@@ -240,6 +242,12 @@ void triggerDoorbell() {
     showStatus("Sent!", "Visits: " + String(visitCount));
     blinkFlash(3);
     delay(800);
+    // Greet the visitor: by name if recognised, else a generic welcome.
+    if (lastVisitorName.length() > 0)
+      showStatus("Welcome,", lastVisitorName);
+    else
+      showStatus("New visitor", "Hello!");
+    delay(3000);
     // Wait for the homeowner's Telegram reply and show it to the visitor.
     waitForHomeownerReply(lastVisitId);
   } else {
@@ -260,6 +268,38 @@ void showStatus(const String& line1, const String& line2) {
   oled.drawStr(OLED_X, 16, line1.c_str());
   oled.setFont(u8g2_font_6x12_tr);
   oled.drawStr(OLED_X, 40, line2.c_str());
+  oled.sendBuffer();
+}
+
+// ── Show a (possibly long) reply, word-wrapped over up to 4 lines ─
+// Used for the homeowner's reply, which can now be free-typed text.
+void showReply(const String& text) {
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_6x12_tr);   // ~20 chars per 128px line
+  const int   maxChars = 20;
+  const int   lineH    = 14;
+  int         y        = 14;
+  String      line     = "";
+  String      word     = "";
+  String      t        = text + " ";
+
+  for (int i = 0; i < (int)t.length() && y <= 60; i++) {
+    char c = t[i];
+    if (c == ' ') {
+      if (word.length() == 0) continue;
+      if (line.length() + 1 + word.length() > (unsigned)maxChars && line.length() > 0) {
+        oled.drawStr(OLED_X, y, line.c_str());
+        y += lineH;
+        line = word;
+      } else {
+        line = line.length() ? line + " " + word : word;
+      }
+      word = "";
+    } else {
+      word += c;
+    }
+  }
+  if (line.length() > 0 && y <= 60) oled.drawStr(OLED_X, y, line.c_str());
   oled.sendBuffer();
 }
 
@@ -307,7 +347,7 @@ void waitForHomeownerReply(int visitId) {
             String reply = resp.substring(p + 1, q);
             if (reply.length() > 0) {
               Serial.println("[Reply] Homeowner: " + reply);
-              showStatus(reply, "- homeowner");
+              showReply(reply);            // word-wrapped (handles typed replies)
               delay(8000);   // keep the reply on screen for the visitor to read
               return;
             }
@@ -554,6 +594,21 @@ bool postVisitToBackend(camera_fb_t* fb) {
     if (p > start) lastVisitId = resp.substring(start, p).toInt();
   }
   Serial.println("[Backend] Visit id: " + String(lastVisitId));
+
+  // Recognised name from the backend: "visitor_name":"Mom" (null = unknown).
+  lastVisitorName = "";
+  int vn = resp.indexOf("\"visitor_name\":");
+  if (vn >= 0) {
+    int p = vn + 15;
+    while (p < (int)resp.length() && resp[p] == ' ') p++;
+    if (p < (int)resp.length() && resp[p] == '"') {   // a real name, not null
+      int q = resp.indexOf('"', p + 1);
+      if (q > p) lastVisitorName = resp.substring(p + 1, q);
+    }
+  }
+  if (lastVisitorName.length() > 0)
+    Serial.println("[Backend] Recognised: " + lastVisitorName);
+
   return ok;
 }
 
