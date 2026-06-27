@@ -43,6 +43,12 @@ STORAGE_BUCKET       = "photos"
 # Empty value = gate disabled (e.g. local development).
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
 
+# Shared secret for the ESP32 device endpoints (visit upload, heartbeat,
+# reply poll). Like DASHBOARD_PASSWORD: empty value = gate disabled, so the
+# backend can deploy without breaking the live device until the secret is set
+# on Railway AND in the firmware's secrets.h (SECRET_DEVICE_KEY).
+DEVICE_SECRET = os.getenv("DEVICE_SECRET", "").strip()
+
 # Face recognition toggle — OFF unless explicitly enabled with
 # RECOGNITION_ENABLED=1. Keeping it off avoids the ~600 MB resident
 # model (Railway credit burn) while the team decides on the feature.
@@ -51,6 +57,10 @@ RECOGNITION_ENABLED = os.getenv("RECOGNITION_ENABLED", "0").strip() == "1"
 def require_dashboard_key(x_dashboard_key: str = Header(default="")):
     if DASHBOARD_PASSWORD and x_dashboard_key != DASHBOARD_PASSWORD:
         raise HTTPException(401, "Invalid dashboard password")
+
+def require_device_key(x_device_key: str = Header(default="")):
+    if DEVICE_SECRET and x_device_key != DEVICE_SECRET:
+        raise HTTPException(401, "Invalid device key")
 
 SERVER_START_TIME = time.time()
 
