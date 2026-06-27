@@ -36,6 +36,15 @@ const char* WIFI_PASSWORD = SECRET_WIFI_PASSWORD;
 const char* BOT_TOKEN     = SECRET_BOT_TOKEN;
 const char* CHAT_ID       = SECRET_CHAT_ID;
 
+// SEC-03: shared secret sent to the backend on every device request.
+// Agree the value with Rami (backend env var DEVICE_SECRET) and add it to
+// secrets.h as SECRET_DEVICE_KEY. The fallback lets the sketch compile now;
+// the header is harmless until the backend starts enforcing it.
+#ifndef SECRET_DEVICE_KEY
+#define SECRET_DEVICE_KEY "CHANGE_ME_AGREE_WITH_RAMI"
+#endif
+const char* DEVICE_KEY    = SECRET_DEVICE_KEY;
+
 // ── Backend server URL ────────────────────────────────────────
 // Permanent cloud deployment (Railway + Supabase) — no ngrok.
 // Leave empty to skip backend posting (Telegram only).
@@ -326,6 +335,7 @@ void waitForHomeownerReply(int visitId) {
     if (client.connect(host.c_str(), 443)) {
       client.println("GET " + path + " HTTP/1.1");
       client.println("Host: " + host);
+      client.println("X-Device-Key: " + String(DEVICE_KEY));
       client.println("Connection: close");
       client.println();
 
@@ -549,6 +559,7 @@ bool postVisitToBackend(camera_fb_t* fb) {
 
   client.println("POST /api/visits HTTP/1.1");
   client.println("Host: " + host);
+  client.println("X-Device-Key: " + String(DEVICE_KEY));
   client.println("Content-Type: multipart/form-data; boundary=" + boundary);
   client.println("Content-Length: " + String(totalLen));
   client.println("Connection: close");
@@ -633,6 +644,7 @@ void sendHeartbeat() {
 
   client.println("POST /api/device/heartbeat HTTP/1.1");
   client.println("Host: " + host);
+  client.println("X-Device-Key: " + String(DEVICE_KEY));
   client.println("Content-Type: application/json");
   client.println("Content-Length: " + String(body.length()));
   client.println("Connection: close");
