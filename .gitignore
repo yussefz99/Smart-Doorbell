@@ -6,6 +6,8 @@ Unit Tests/**/secrets.h
 # Python
 __pycache__/
 *.pyc
+.venv/
+backend/.venv/
 
 # Database & runtime data
 backend/doorbell.db
