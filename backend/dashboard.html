@@ -502,6 +502,21 @@ tbody tr:hover { background: var(--surface2); }
   padding: 20px;
 }
 .settings-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+/* ── Known Visitors ─────────────────────────────────────── */
+.visitors-count { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+.visitors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.visitor-card { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.visitor-photo { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; cursor: pointer; flex-shrink: 0; }
+.visitor-photo.placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg); font-size: 24px; cursor: default; }
+.visitor-body { flex: 1; min-width: 0; }
+.visitor-name { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: inherit; padding: 6px 8px; font-size: 14px; font-weight: 600; transition: border-color .2s; }
+.visitor-name:focus { outline: none; border-color: var(--accent); }
+.visitor-meta { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+.visitor-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; align-self: flex-start; }
+.visitor-del:hover { color: var(--red); }
+.visitors-empty { text-align: center; color: var(--text-dim); padding: 48px 20px; line-height: 1.7; }
+.visitors-empty span { font-size: 12px; opacity: .8; }
 .setting-row {
   display: flex;
   align-items: center;
@@ -622,6 +637,9 @@ select.setting-select {
     <div class="nav-item" data-page="stats">
       <span class="ni">📊</span> Statistics
     </div>
+    <div class="nav-item" data-page="visitors">
+      <span class="ni">👤</span> Known Visitors
+    </div>
     <div class="nav-label">System</div>
     <div class="nav-item" data-page="diagnostics">
       <span class="ni">🖥</span> Diagnostics
@@ -695,6 +713,12 @@ select.setting-select {
           <div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
         </div>
       </div>
+    </div>
+
+    <!-- VISITORS PAGE -->
+    <div class="page" id="page-visitors">
+      <div id="visitors-intro"></div>
+      <div class="visitors-grid" id="visitors-grid"></div>
     </div>
 
     <!-- DIAGNOSTICS PAGE -->
@@ -900,6 +924,7 @@ const pages = {
   stats:       { el: 'page-stats',       title: 'Statistics' },
   diagnostics: { el: 'page-diagnostics', title: 'Diagnostics' },
   settings:    { el: 'page-settings',    title: 'Settings' },
+  visitors:    { el: 'page-visitors',    title: 'Known Visitors' },
 };
 
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -913,6 +938,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (page === 'stats')       renderStats();
     if (page === 'diagnostics') loadDiagnostics();
     if (page === 'settings')    loadSettings();
+    if (page === 'visitors')    loadVisitors();
   });
 });
 
@@ -985,6 +1011,69 @@ async function patchTag(id, tag) {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ tag })
   });
+}
+
+// ── Known Visitors (face recognition) ─────────────────────
+function vEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function loadVisitors() {
+  const grid  = document.getElementById('visitors-grid');
+  const intro = document.getElementById('visitors-intro');
+  try {
+    const list = await fetchJSON('/api/visitors');
+    if (!list.length) {
+      intro.innerHTML = '';
+      grid.innerHTML = `<div class="visitors-empty">No known visitors yet.<br>
+        <span>When face recognition is on, each new face is added here — give them a name so they're greeted by name next time.</span></div>`;
+      return;
+    }
+    intro.innerHTML = `<div class="visitors-count">${list.length} known visitor${list.length>1?'s':''}</div>`;
+    grid.innerHTML  = list.map(renderVisitorCard).join('');
+  } catch (e) {
+    intro.innerHTML = '';
+    grid.innerHTML = `<div class="visitors-empty">Visitors unavailable.<br>
+      <span>Face recognition isn't set up on the backend yet.</span></div>`;
+  }
+}
+
+function renderVisitorCard(v) {
+  const display = v.name || `Unnamed #${v.id}`;
+  const photo = v.photo_url
+    ? `<img class="visitor-photo" src="${vEsc(v.photo_url)}" alt="${vEsc(display)}" onclick="openLightbox('${vEsc(v.photo_url)}')">`
+    : `<div class="visitor-photo placeholder">👤</div>`;
+  return `<div class="visitor-card">
+    ${photo}
+    <div class="visitor-body">
+      <input class="visitor-name" value="${vEsc(v.name||'')}" placeholder="Unnamed #${v.id}"
+             onchange="renameVisitor(${v.id}, this.value, this)">
+      <div class="visitor-meta">${v.visit_count} visit${v.visit_count===1?'':'s'} · last seen ${timeAgo(v.last_seen)}</div>
+    </div>
+    <button class="visitor-del" title="Remove" onclick="deleteVisitor(${v.id})">🗑</button>
+  </div>`;
+}
+
+async function renameVisitor(id, name, el) {
+  name = name.trim();
+  if (!name) return;
+  try {
+    const r = await fetch(`${API}/api/visitors/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name })
+    });
+    el.style.borderColor = r.ok ? 'var(--green)' : 'var(--red)';
+  } catch (e) {
+    el.style.borderColor = 'var(--red)';
+  }
+  setTimeout(() => { el.style.borderColor = ''; }, 1500);
+}
+
+async function deleteVisitor(id) {
+  if (!confirm('Remove this visitor? Their past visits stay, but they lose their saved name.')) return;
+  try {
+    await fetch(`${API}/api/visitors/${id}`, { method: 'DELETE', headers: authHeaders() });
+  } catch (e) {}
+  loadVisitors();
 }
 
 // ── Load all data ─────────────────────────────────────────
