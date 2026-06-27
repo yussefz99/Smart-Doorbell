@@ -9,7 +9,7 @@
 ## Phases
 
 - [ ] **Phase 1: Settings Wiring** - Quiet-hours settings fully round-trip between backend and dashboard; no misleading controls on the Settings page
-- [ ] **Phase 2: Security + Reliability Hardening** - Device and webhook endpoints authenticated; callback parser hardened; database bootstraps all tables; firmware updated and real-button round-trip verified
+- [x] **Phase 2: Security + Reliability Hardening** - Device and webhook endpoints authenticated; callback parser hardened; database bootstraps all tables; firmware updated and real-button round-trip verified (completed 2026-06-27)
 - [ ] **Phase 3: Visitor Recognition** - Returning visitors identified by name (feasibility-gated); names shown in dashboard, Telegram, and on the door OLED; tested end-to-end
 - [ ] **Phase 4: Demo Readiness + Documentation** - Docs reconciled with actual code state; live-demo runbook written and rehearsed
 
@@ -43,7 +43,7 @@
 **Plans**: 3 plans (Rami / backend-only; SEC-03 + DEMO-01 are teammate-owned/verification)
 - [x] 02-01-device-auth-PLAN.md — Require X-Device-Key on visit upload, heartbeat, and reply poll (gate-off-when-empty)
 - [x] 02-02-webhook-auth-callback-hardening-PLAN.md — Validate the Telegram webhook secret token + bounds-check the reply callback parser
-- [ ] 02-03-db-bootstrap-device-contract-PLAN.md — init_db() bootstraps pgvector + visitors/visitor_embeddings; record teammate-owned SEC-03/DEMO-01 contract
+- [x] 02-03-db-bootstrap-device-contract-PLAN.md — init_db() bootstraps pgvector + visitors/visitor_embeddings; record teammate-owned SEC-03/DEMO-01 contract
 
 ### Phase 3: Visitor Recognition
 **Goal**: Returning visitors are identified by name end-to-end (dashboard, Telegram, and the door OLED) — but only if recognition proves feasible on the real ESP32-CAM camera; otherwise it stays disabled and this phase stops at the feasibility gate
@@ -75,7 +75,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Settings Wiring | 0/? | Not started | - |
-| 2. Security + Reliability Hardening | 2/3 | In Progress|  |
+| 2. Security + Reliability Hardening | 3/3 | Complete   | 2026-06-27 |
 | 3. Visitor Recognition | 0/? | Not started | - |
 | 4. Demo Readiness + Documentation | 0/? | Not started | - |
 
