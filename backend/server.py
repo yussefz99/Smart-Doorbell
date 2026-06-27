@@ -373,7 +373,7 @@ def delete_visitor(visitor_id: int):
 
 
 # POST /api/visits — ESP32 posts a new visit (multipart: photo + metadata)
-@app.post("/api/visits", status_code=201)
+@app.post("/api/visits", status_code=201, dependencies=[Depends(require_device_key)])
 async def create_visit(
     trigger:   str        = Form(...),
     timestamp: str        = Form(None),
@@ -482,8 +482,9 @@ async def create_visit(
 # GET /api/visits/:id/response — lightweight poll for the doorbell device.
 # The ESP32 calls this after a visit to show the homeowner's reply
 # ("On my way" / "Not home") to the visitor on its OLED display.
-# No dashboard key: it only exposes the reply text for a single visit.
-@app.get("/api/visits/{visit_id}/response")
+# Auth: requires X-Device-Key (the firmware sends it). Enforced only when
+# DEVICE_SECRET is set, so it stays open in local/dev with no secret.
+@app.get("/api/visits/{visit_id}/response", dependencies=[Depends(require_device_key)])
 def get_visit_response(visit_id: int):
     row = db_fetchone("SELECT id, response FROM visits WHERE id=%s", (visit_id,))
     if not row:
@@ -582,7 +583,7 @@ def get_device_status():
 
 
 # POST /api/device/heartbeat — ESP32 reports its status periodically
-@app.post("/api/device/heartbeat")
+@app.post("/api/device/heartbeat", dependencies=[Depends(require_device_key)])
 def device_heartbeat(body: DeviceHeartbeat):
     now = datetime.now(timezone.utc).isoformat()
     db_execute(
