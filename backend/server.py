@@ -611,7 +611,31 @@ async def telegram_webhook(request: Request):
     """
     body = await request.json()
 
-    # Only handle callback queries (button taps)
+    # Typed reply: homeowner *replies* to the doorbell message with free text.
+    # Matched to the visit via the stored telegram_message_id.
+    message = body.get("message")
+    if message and message.get("text") and message.get("reply_to_message"):
+        text       = (message.get("text") or "").strip()
+        replied_id = message["reply_to_message"].get("message_id")
+        row = db_fetchone(
+            "SELECT * FROM visits WHERE telegram_message_id=%s", (replied_id,)
+        )
+        if row and text:
+            db_execute("UPDATE visits SET response=%s WHERE id=%s", (text, row["id"]))
+            visit = row_to_visit(
+                db_fetchone("SELECT * FROM visits WHERE id=%s", (row["id"],))
+            )
+            ts    = visit["timestamp"][:16].replace("T", " ")
+            label = "🔔 Doorbell" if visit["trigger"] == "button" else "👁 Motion"
+            if visit.get("telegram_message_id"):
+                await tg.remove_buttons(
+                    visit["telegram_message_id"],
+                    f"{label} · {ts}\n✅ You replied: {text}"
+                )
+            await manager.broadcast({"type": "visit_updated", "data": visit})
+        return {"ok": True}
+
+    # Otherwise, only handle callback queries (button taps)
     callback = body.get("callback_query")
     if not callback:
         return {"ok": True}
