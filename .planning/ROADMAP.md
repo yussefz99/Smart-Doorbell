@@ -28,16 +28,17 @@
 **Plans**: TBD
 
 ### Phase 2: Security + Reliability Hardening
-**Goal**: Device endpoints require a shared secret, the Telegram webhook is authenticated, the callback parser cannot crash, the database bootstraps safely — and the physical button triggers a verified end-to-end round-trip
+**Goal**: All three device endpoints (visit upload, heartbeat, reply poll) require a shared secret, the Telegram webhook is authenticated, the callback parser cannot crash, the database bootstraps safely — and the physical button on the OLED demo build (`doorbell_step5_btn_io14`) triggers a verified end-to-end round-trip
 **Depends on**: Phase 1
-**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, REL-01, DEMO-01
+**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, SEC-06, REL-01, DEMO-01
 **Success Criteria** (what must be TRUE):
   1. `POST /api/visits` without the correct `X-Device-Key` header returns 401 or 403; with the correct header returns 201
   2. `POST /api/device/heartbeat` without the correct `X-Device-Key` header returns 401 or 403; with the correct header returns 200
   3. `POST /telegram/webhook` with no `X-Telegram-Bot-Api-Secret-Token` (or a wrong value) returns 403; Telegram's registered token is accepted and callbacks are processed normally
   4. Sending a malformed `callback_data` (e.g., `reply:` with no further parts) to the webhook endpoint returns 200 with a clean error body — no IndexError, no HTTP 500 retry loop
   5. A fresh-database app start (tables dropped) completes `init_db()` and `POST /api/visits` succeeds — no 500 from a missing `visitors` or `visitor_embeddings` table
-  6. Physical GPIO 13 button press on the live ESP32 (with `TRIGGER_ON_BOOT false` and `X-Device-Key` header wired in firmware) produces a photo notification in Telegram and a live dashboard update — full round-trip confirmed
+  6. Physical GPIO 13 button press on the live ESP32 demo build (`doorbell_step5_btn_io14`, with `TRIGGER_ON_BOOT false` and `X-Device-Key` wired in firmware) produces a photo notification in Telegram, a live dashboard update, and the homeowner's reply shown on the visitor OLED — full round-trip confirmed
+  7. `GET /api/visits/{id}/response` without the correct `X-Device-Key` returns 401 or 403; with the correct header it returns the visit's reply text
 **Plans**: TBD
 
 ### Phase 3: Demo Readiness + Documentation
@@ -63,4 +64,4 @@
 ---
 
 *Roadmap created: 2026-06-27*
-*Last updated: 2026-06-27*
+*Last updated: 2026-06-27 (synced with teammate push 061d8b0 — Phase 2 now covers SEC-06 + OLED demo build)*

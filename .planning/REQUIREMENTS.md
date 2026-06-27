@@ -16,9 +16,10 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 
 - [ ] **SEC-01**: `POST /api/visits` requires a shared device secret (`X-Device-Key`); requests without the correct secret are rejected with 401/403
 - [ ] **SEC-02**: `POST /api/device/heartbeat` requires the same `X-Device-Key` secret
-- [ ] **SEC-03**: ESP32 firmware sends the `X-Device-Key` header on visit upload and heartbeat (paired with SEC-01/SEC-02), and the demo round-trip still works end-to-end
+- [ ] **SEC-03**: ESP32 firmware (`doorbell_step5_btn_io14`, the demo build) sends the `X-Device-Key` header on visit upload, heartbeat, and the reply poll (paired with SEC-01/SEC-02/SEC-06), and the demo round-trip still works end-to-end
 - [ ] **SEC-04**: `POST /telegram/webhook` validates the `X-Telegram-Bot-Api-Secret-Token` header; requests without the registered token are rejected
 - [ ] **SEC-05**: The Telegram webhook callback parser bounds-checks `reply:`-prefixed `callback_data` and returns a clean response (no IndexError / repeated 500 retries) on malformed input
+- [ ] **SEC-06**: `GET /api/visits/{id}/response` (teammate's device poll endpoint, currently unauthenticated) requires the same `X-Device-Key` secret
 
 ### Reliability
 
@@ -26,7 +27,7 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 
 ### Demo
 
-- [ ] **DEMO-01**: `TRIGGER_ON_BOOT` is set to `false` and the doorbell fires on a real GPIO 13 button press, verified end-to-end (press → photo → Telegram notification → reply → dashboard update)
+- [ ] **DEMO-01**: `TRIGGER_ON_BOOT` is set to `false` in `doorbell_step5_btn_io14` and the doorbell fires on a real GPIO 13 button press, verified end-to-end (press → photo → Telegram notification → reply → dashboard update → reply shown on the visitor OLED)
 
 ### Documentation
 
@@ -71,16 +72,17 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 | SEC-03 | Phase 2 | Pending |
 | SEC-04 | Phase 2 | Pending |
 | SEC-05 | Phase 2 | Pending |
+| SEC-06 | Phase 2 | Pending |
 | REL-01 | Phase 2 | Pending |
 | DEMO-01 | Phase 2 | Pending |
 | DOC-01 | Phase 3 | Pending |
 | DOC-02 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
+- v1 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-27*
-*Last updated: 2026-06-27 after roadmap creation*
+*Last updated: 2026-06-27 after teammate push (061d8b0) — added SEC-06*

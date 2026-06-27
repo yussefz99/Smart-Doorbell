@@ -6,9 +6,10 @@ An IoT smart doorbell built on the ESP32-CAM. A visitor presses the physical
 button, the device captures a photo and uploads it to a FastAPI backend, which
 sends the homeowner a Telegram notification with inline reply buttons. The
 homeowner's reply flows back through a Telegram webhook, and every visit —
-including the reply — appears live on a web dashboard. This is a university
-capstone project (Group 15), graded on **both a live demo and a written
-report/poster**.
+including the reply — appears live on a web dashboard. The doorbell also shows
+the homeowner's reply back to the visitor on a small OLED screen. This is a
+university capstone project (Group 15), graded on **both a live demo and a
+written report/poster**.
 
 ## Core Value
 
@@ -31,13 +32,15 @@ reply → dashboard loop must work.
 - ✓ Device heartbeat (RSSI every 60s) → Diagnostics online/offline state — existing
 - ✓ Quiet-hours logic enforced server-side — existing
 - ✓ Secrets managed via gitignored `secrets.h` / `.env` + Railway Variables — existing
+- ✓ Visitor-facing OLED reply display — ESP32 polls `GET /api/visits/{id}/response` and shows "On my way" / "Not home" to the visitor — existing (teammate, 2026-06-27)
+- ✓ Reliable button debounce (two-state edge detection) — existing (teammate fix, 2026-06-27)
 
 ### Active
 
 <!-- Submission-ready scope. Hardening + finishing loose ends; no new features. -->
 
 - [ ] Settings fully wired backend ↔ dashboard (read + write of quiet hours, toggles), closing the partial V2 gap
-- [ ] Device-endpoint auth: shared `X-Device-Key` secret on `POST /api/visits` and `POST /api/device/heartbeat`
+- [ ] Device-endpoint auth: shared `X-Device-Key` secret on `POST /api/visits`, `POST /api/device/heartbeat`, and `GET /api/visits/{id}/response` (new teammate endpoint, currently open)
 - [ ] Telegram webhook secret token validated (`X-Telegram-Bot-Api-Secret-Token`)
 - [ ] Telegram webhook callback parser hardened (bounds-check on `reply:` split → no IndexError/500 retries)
 - [ ] `init_db()` creates all tables it depends on (guards so enabling recognition can't crash visit creation)
@@ -50,7 +53,7 @@ reply → dashboard loop must work.
 
 - V3 face recognition — code exists but unvalidated (buffalo_s scored ~−0.01 on test photos); stays `RECOGNITION_ENABLED=0`. Demoing a broken "New visitor every press" is worse than not demoing it.
 - V4 motion detection (PIR) — hardware-dependent, not core to the doorbell loop.
-- V4 audio response to visitor (MAX98357A + speaker) — pending hardware + team decision; not core.
+- V4 audio response to visitor (MAX98357A + speaker) — pending hardware + team decision; visitor feedback is now met *visually* by the OLED reply display (built 2026-06-27), so audio is no longer needed for the demo.
 - V4 offline SPIFFS buffering — reliability nicety, not required for a controlled demo.
 - Flutter app (`flutter_app/`) — placeholder only; the web dashboard is the UI for this submission.
 
@@ -79,6 +82,7 @@ reply → dashboard loop must work.
 | Set `TRIGGER_ON_BOOT=false`, demo on the real soldered button | Button is wired and working; a real press is a stronger demo than RESET | — Pending |
 | Add lightweight shared-secret auth, defer cert pinning / DB pooling | High value / low effort vs. low marginal value for a lab demo | — Pending |
 | Bootstrap GSD via `~/.claude/get-shit-done` symlink to plugin cache 2.45.9 | `/plugin` unavailable in VS Code; symlink unblocks the runtime | ⚠️ Revisit (reinstall from desktop app later) |
+| Demo firmware is `doorbell_step5_btn_io14` (button + OLED reply) | Teammate built visitor-reply OLED; richer demo than the LED-only sketch | — Pending |
 
 ## Evolution
 
@@ -98,4 +102,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-27 after initialization*
+*Last updated: 2026-06-27 after teammate's OLED + reply-endpoint push (061d8b0)*
