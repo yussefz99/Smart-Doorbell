@@ -469,6 +469,18 @@ async def create_visit(
     return visit
 
 
+# GET /api/visits/:id/response — lightweight poll for the doorbell device.
+# The ESP32 calls this after a visit to show the homeowner's reply
+# ("On my way" / "Not home") to the visitor on its OLED display.
+# No dashboard key: it only exposes the reply text for a single visit.
+@app.get("/api/visits/{visit_id}/response")
+def get_visit_response(visit_id: int):
+    row = db_fetchone("SELECT id, response FROM visits WHERE id=%s", (visit_id,))
+    if not row:
+        raise HTTPException(404, "visit not found")
+    return {"id": row["id"], "response": row["response"]}
+
+
 # PATCH /api/visits/:id/tag — dashboard sets a tag
 @app.patch("/api/visits/{visit_id}/tag", dependencies=[Depends(require_dashboard_key)])
 def update_tag(visit_id: int, body: TagUpdate):

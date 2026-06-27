@@ -9,24 +9,25 @@
 ### Firmware
 - [x] Step 1: LEDs + button + buzzer (Wokwi tested)
 - [x] Step 2: WiFi connection + Telegram text message (built, needs hardware test)
-- [ ] Step 3: Camera capture test — capture photo, save to SPIFFS
-- [ ] Step 4: Send photo to Telegram (`sendPhoto` API call)
-- [ ] Step 5: Full V1 loop — button press → capture → send → LED states → buzzer
+- [x] Step 3: Camera capture test — capture photo (OV2640 init OK)
+- [x] Step 4: Send photo to Telegram (via backend; photo + reply buttons arrive)
+- [x] Step 5: Full V1 loop — button press → capture → send (flash LED for status; external LEDs/buzzer not used on CS-CAM build)
 
 ### Hardware
 - [x] GPIO pin assignment finalised (GPIO 13 conflict resolved)
 - [x] Wiring diagram produced
-- [ ] Physical hardware assembled and wired
-- [ ] Upload procedure tested on real ESP32-CAM
+- [x] Physical hardware assembled and wired (CS-CAM board, button on IO13+IO14)
+- [x] Upload procedure tested on real ESP32-CAM (USB-B; hold BOOT during "Connecting...")
 
 ### Testing
-- [ ] WiFi connects and Serial Monitor shows IP address
-- [ ] Telegram text message arrives on phone (HTTP 200)
-- [ ] Camera initialises without error
-- [ ] Photo captured and saved locally
-- [ ] Photo sent to Telegram on button press
-- [ ] LED states cycle correctly: green → red → yellow → green
-- [ ] Buzzer plays confirmation beep on send
+- [x] WiFi connects and Serial Monitor shows IP address (10.0.0.60)
+- [x] Telegram message arrives on phone (photo + reply buttons)
+- [x] Camera initialises without error
+- [x] Photo captured
+- [x] Photo sent to Telegram on button press
+- [x] Status shown via built-in flash LED (capturing / sending / done)
+- [ ] ~~LED states green → red → yellow~~ — N/A on CS-CAM build (single flash LED only)
+- [ ] ~~Buzzer confirmation beep~~ — N/A on CS-CAM build (not wired)
 
 ---
 
