@@ -1,0 +1,7 @@
+# throwaway spike photos — do not commit faces
+*.jpg
+*.jpeg
+*.png
+*.JPG
+*.JPEG
+*.PNG
