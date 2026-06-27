@@ -42,7 +42,7 @@
   7. `GET /api/visits/{id}/response` without the correct `X-Device-Key` returns 401 or 403; with the correct header it returns the visit's reply text
 **Plans**: 3 plans (Rami / backend-only; SEC-03 + DEMO-01 are teammate-owned/verification)
 - [x] 02-01-device-auth-PLAN.md — Require X-Device-Key on visit upload, heartbeat, and reply poll (gate-off-when-empty)
-- [ ] 02-02-webhook-auth-callback-hardening-PLAN.md — Validate the Telegram webhook secret token + bounds-check the reply callback parser
+- [x] 02-02-webhook-auth-callback-hardening-PLAN.md — Validate the Telegram webhook secret token + bounds-check the reply callback parser
 - [ ] 02-03-db-bootstrap-device-contract-PLAN.md — init_db() bootstraps pgvector + visitors/visitor_embeddings; record teammate-owned SEC-03/DEMO-01 contract
 
 ### Phase 3: Visitor Recognition
@@ -75,7 +75,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Settings Wiring | 0/? | Not started | - |
-| 2. Security + Reliability Hardening | 1/3 | In Progress|  |
+| 2. Security + Reliability Hardening | 2/3 | In Progress|  |
 | 3. Visitor Recognition | 0/? | Not started | - |
 | 4. Demo Readiness + Documentation | 0/? | Not started | - |
 
