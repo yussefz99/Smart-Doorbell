@@ -1,8 +1,8 @@
 # Roadmap: Smart Doorbell — Group 15
 
-**Milestone:** Submission-Ready Hardening + Voice Notes
-**Granularity:** Coarse (4 phases)
-**Coverage:** 16/16 v1 requirements mapped
+**Milestone:** Submission-Ready Hardening + Voice Notes + Recognition
+**Granularity:** Coarse (5 phases)
+**Coverage:** 21/21 v1 requirements mapped
 
 ---
 
@@ -11,7 +11,8 @@
 - [ ] **Phase 1: Settings Wiring** - Quiet-hours settings fully round-trip between backend and dashboard; no misleading controls on the Settings page
 - [ ] **Phase 2: Security + Reliability Hardening** - Device and webhook endpoints authenticated; callback parser hardened; database bootstraps all tables; firmware updated and real-button round-trip verified
 - [ ] **Phase 3: Voice Notes (Speaker)** - Homeowner's Telegram voice note is transcoded backend-side and played on the doorbell speaker for the visitor
-- [ ] **Phase 4: Demo Readiness + Documentation** - Docs reconciled with actual code state; live-demo runbook written and rehearsed
+- [ ] **Phase 4: Visitor Recognition** - Returning visitors identified by name (feasibility-gated); names shown in dashboard + Telegram; tested end-to-end
+- [ ] **Phase 5: Demo Readiness + Documentation** - Docs reconciled with actual code state; live-demo runbook written and rehearsed
 
 ---
 
@@ -54,9 +55,21 @@
   5. If there is no voice note, nothing plays and the OLED text reply still works (graceful fallback)
 **Plans**: TBD
 
-### Phase 4: Demo Readiness + Documentation
+### Phase 4: Visitor Recognition
+**Goal**: Returning visitors are identified by name end-to-end — but only if recognition proves feasible on the real ESP32-CAM camera; otherwise it stays disabled and this phase stops at the feasibility gate
+**Depends on**: Phase 2 (REL-01 creates the `visitors` / `visitor_embeddings` tables + pgvector). Independent of Phase 3 (no firmware) — can run in parallel with the audio work. De-risked by a feasibility spike first.
+**Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05
+**Success Criteria** (what must be TRUE):
+  1. [GATE] On real doorbell photos, the same person scores clearly higher similarity than different people with the chosen model/settings, and a face is actually detected — the go/no-go is recorded (if no-go, recognition stays OFF and that is an acceptable outcome)
+  2. With `RECOGNITION_ENABLED=1`, each visit gets a face embedding matched against known visitors; a recognized visit shows the correct name
+  3. A homeowner can name a visitor from the dashboard, and that person is recognized by name on their next visit (dashboard + Telegram)
+  4. A recognition failure (no face, model error) never breaks visit creation — the visit still saves and notifies
+  5. The model runs within the hosting memory budget without OOM; tested with 2–3 enrolled people across multiple visits, with accuracy + threshold documented
+**Plans**: TBD
+
+### Phase 5: Demo Readiness + Documentation
 **Goal**: All project documents accurately describe the implemented system and the team has a written runbook to execute and recover the live demo
-**Depends on**: Phase 3 (docs must describe the final system, including voice notes)
+**Depends on**: Phase 4 (docs must describe the final system, including recognition status)
 **Requirements**: DOC-01, DOC-02
 **Success Criteria** (what must be TRUE):
   1. README, PLAN.md, and PROGRESS.md contain no claims of unbuilt features that the code already implements (heartbeat, settings model, recognition-gated) — a grader reading the docs sees an accurate picture
@@ -73,9 +86,10 @@
 | 1. Settings Wiring | 0/? | Not started | - |
 | 2. Security + Reliability Hardening | 0/? | Not started | - |
 | 3. Voice Notes (Speaker) | 0/? | Not started | - |
-| 4. Demo Readiness + Documentation | 0/? | Not started | - |
+| 4. Visitor Recognition | 0/? | Not started | - |
+| 5. Demo Readiness + Documentation | 0/? | Not started | - |
 
 ---
 
 *Roadmap created: 2026-06-27*
-*Last updated: 2026-06-27 (added Phase 3 Voice Notes; Demo+Docs → Phase 4)*
+*Last updated: 2026-06-27 (added Phase 4 Visitor Recognition; Demo+Docs → Phase 5)*

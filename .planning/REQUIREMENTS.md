@@ -36,6 +36,14 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 - [ ] **AUD-03**: The ESP32 detects a new `audio_url` via the existing reply poll, downloads the clip, and plays it clearly through the MAX98357A + speaker over I2S; if there is no voice note, nothing plays and the OLED text reply still works
 - [ ] **AUD-04**: The MAX98357A is wired to free ESP32 I2S pins (LRC/BCLK/DIN + 5 V/GND) without breaking the camera, OLED (IO14/15), or button (IO13); the final pin map is documented
 
+### Recognition
+
+- [ ] **REC-01** (spike gate): Face recognition produces *usable* similarity scores on real ESP32-CAM doorbell photos — same-person clearly higher than different-person, and a face is actually detected — with a chosen model (`buffalo_s`/`buffalo_l`) and detector settings; a go/no-go is documented. If no usable accuracy is reachable, recognition stays OFF and Phase 4 stops here.
+- [ ] **REC-02**: With `RECOGNITION_ENABLED=1`, the backend extracts a face embedding per visit and matches it against known visitors via pgvector cosine similarity (tuned threshold), attaching `visitor_id` + name; recognition deps are pinned to exact versions; a recognition failure never blocks visit creation
+- [ ] **REC-03**: The homeowner can register/name a visitor from the dashboard, and subsequent visits by that person are labeled with the name in both the dashboard and the Telegram notification
+- [ ] **REC-04**: Recognition runs within the hosting memory budget — model choice + Railway plan confirmed to not OOM
+- [ ] **REC-05**: End-to-end recognition is tested with at least 2–3 enrolled people across multiple visits; measured accuracy and the chosen threshold are documented
+
 ### Documentation
 
 - [ ] **DOC-01**: README / PLAN / PROGRESS are reconciled with the actual code state (heartbeat implemented, settings model present, recognition built-but-gated) — no stale "not built" claims
@@ -47,7 +55,7 @@ Acknowledged but deferred — not in this submission's roadmap.
 
 ### Recognition
 
-- **REC-01**: Validate face-recognition accuracy on real doorbell photos and enable it if it performs acceptably
+- *(Recognition promoted to v1 — now Phase 4, see REC-01…05 above.)*
 
 ### Hardening
 
@@ -60,7 +68,7 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| V3 face recognition (live in demo) | Unvalidated accuracy (~−0.01 similarity on test photos); stays `RECOGNITION_ENABLED=0` |
+| ~~V3 face recognition~~ | **Moved into scope 2026-06-27** — now Phase 4 (REC-01…05), gated by a feasibility spike; stays OFF only if the spike fails |
 | V4 motion detection (PIR) | Hardware-dependent; not core to the doorbell loop |
 | ~~V4 audio response (MAX98357A + speaker)~~ | **Moved into scope 2026-06-27** — now Phase 3 (Voice Notes), see AUD-01…04 |
 | V4 offline SPIFFS buffering | Reliability nicety; not required for a controlled demo |
@@ -86,14 +94,19 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 | AUD-02 | Phase 3 | Pending |
 | AUD-03 | Phase 3 | Pending |
 | AUD-04 | Phase 3 | Pending |
-| DOC-01 | Phase 4 | Pending |
-| DOC-02 | Phase 4 | Pending |
+| REC-01 | Phase 4 | Pending |
+| REC-02 | Phase 4 | Pending |
+| REC-03 | Phase 4 | Pending |
+| REC-04 | Phase 4 | Pending |
+| REC-05 | Phase 4 | Pending |
+| DOC-01 | Phase 5 | Pending |
+| DOC-02 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 16 total
-- Mapped to phases: 16
+- v1 requirements: 21 total
+- Mapped to phases: 21
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-27*
-*Last updated: 2026-06-27 after adding Phase 3 (voice-note playback) — added AUD-01…04*
+*Last updated: 2026-06-27 after adding Phase 4 (face recognition) — added REC-01…05*
