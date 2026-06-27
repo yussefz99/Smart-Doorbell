@@ -29,6 +29,13 @@ Submission-ready scope: hardening and finishing loose ends on the existing V1/V2
 
 - [ ] **DEMO-01**: `TRIGGER_ON_BOOT` is set to `false` in `doorbell_step5_btn_io14` and the doorbell fires on a real GPIO 13 button press, verified end-to-end (press → photo → Telegram notification → reply → dashboard update → reply shown on the visitor OLED)
 
+### Audio / Voice
+
+- [ ] **AUD-01**: Homeowner records a voice note in Telegram as a reply to the doorbell photo message; the backend webhook captures the `voice` file and links it to that visit (via `reply_to_message` → `telegram_message_id`)
+- [ ] **AUD-02**: Backend transcodes the voice note (OGG/Opus) to a low-bitrate MP3 with `ffmpeg`, stores it in Supabase Storage, and exposes an `audio_url` on the visit (returned by `GET /api/visits/{id}/response`)
+- [ ] **AUD-03**: The ESP32 detects a new `audio_url` via the existing reply poll, downloads the clip, and plays it clearly through the MAX98357A + speaker over I2S; if there is no voice note, nothing plays and the OLED text reply still works
+- [ ] **AUD-04**: The MAX98357A is wired to free ESP32 I2S pins (LRC/BCLK/DIN + 5 V/GND) without breaking the camera, OLED (IO14/15), or button (IO13); the final pin map is documented
+
 ### Documentation
 
 - [ ] **DOC-01**: README / PLAN / PROGRESS are reconciled with the actual code state (heartbeat implemented, settings model present, recognition built-but-gated) — no stale "not built" claims
@@ -55,7 +62,7 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 |---------|--------|
 | V3 face recognition (live in demo) | Unvalidated accuracy (~−0.01 similarity on test photos); stays `RECOGNITION_ENABLED=0` |
 | V4 motion detection (PIR) | Hardware-dependent; not core to the doorbell loop |
-| V4 audio response (MAX98357A + speaker) | Pending hardware + team decision |
+| ~~V4 audio response (MAX98357A + speaker)~~ | **Moved into scope 2026-06-27** — now Phase 3 (Voice Notes), see AUD-01…04 |
 | V4 offline SPIFFS buffering | Reliability nicety; not required for a controlled demo |
 | Flutter app | Placeholder only; web dashboard is the submission UI |
 | ESP32 TLS cert pinning | Lab-prototype bar; deferred to v2 (HARD-01) |
@@ -75,14 +82,18 @@ Explicitly excluded for this submission. Documented to prevent scope creep.
 | SEC-06 | Phase 2 | Pending |
 | REL-01 | Phase 2 | Pending |
 | DEMO-01 | Phase 2 | Pending |
-| DOC-01 | Phase 3 | Pending |
-| DOC-02 | Phase 3 | Pending |
+| AUD-01 | Phase 3 | Pending |
+| AUD-02 | Phase 3 | Pending |
+| AUD-03 | Phase 3 | Pending |
+| AUD-04 | Phase 3 | Pending |
+| DOC-01 | Phase 4 | Pending |
+| DOC-02 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 12 total
-- Mapped to phases: 12
+- v1 requirements: 16 total
+- Mapped to phases: 16
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-27*
-*Last updated: 2026-06-27 after teammate push (061d8b0) — added SEC-06*
+*Last updated: 2026-06-27 after adding Phase 3 (voice-note playback) — added AUD-01…04*

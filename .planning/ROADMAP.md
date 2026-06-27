@@ -1,8 +1,8 @@
 # Roadmap: Smart Doorbell — Group 15
 
-**Milestone:** Submission-Ready Hardening
-**Granularity:** Coarse (3 phases)
-**Coverage:** 11/11 v1 requirements mapped
+**Milestone:** Submission-Ready Hardening + Voice Notes
+**Granularity:** Coarse (4 phases)
+**Coverage:** 16/16 v1 requirements mapped
 
 ---
 
@@ -10,7 +10,8 @@
 
 - [ ] **Phase 1: Settings Wiring** - Quiet-hours settings fully round-trip between backend and dashboard; no misleading controls on the Settings page
 - [ ] **Phase 2: Security + Reliability Hardening** - Device and webhook endpoints authenticated; callback parser hardened; database bootstraps all tables; firmware updated and real-button round-trip verified
-- [ ] **Phase 3: Demo Readiness + Documentation** - Docs reconciled with actual code state; live-demo runbook written and rehearsed
+- [ ] **Phase 3: Voice Notes (Speaker)** - Homeowner's Telegram voice note is transcoded backend-side and played on the doorbell speaker for the visitor
+- [ ] **Phase 4: Demo Readiness + Documentation** - Docs reconciled with actual code state; live-demo runbook written and rehearsed
 
 ---
 
@@ -41,9 +42,21 @@
   7. `GET /api/visits/{id}/response` without the correct `X-Device-Key` returns 401 or 403; with the correct header it returns the visit's reply text
 **Plans**: TBD
 
-### Phase 3: Demo Readiness + Documentation
+### Phase 3: Voice Notes (Speaker)
+**Goal**: The homeowner can record a voice note in Telegram and have it play on the doorbell's speaker for the visitor — without breaking the existing camera, OLED, or button
+**Depends on**: Phase 2 (shares the firmware build → another flash). De-risked by an audio spike before planning.
+**Requirements**: AUD-01, AUD-02, AUD-03, AUD-04
+**Success Criteria** (what must be TRUE):
+  1. Replying to a doorbell photo in Telegram with a voice note causes the backend to store an audio file and attach its `audio_url` to that visit
+  2. `GET /api/visits/{id}/response` returns the `audio_url` once the voice note is processed
+  3. The ESP32 downloads and plays the clip clearly through the MAX98357A + speaker within a few seconds of the reply
+  4. The MAX98357A is wired to free I2S pins (LRC/BCLK/DIN + 5 V/GND) with the camera, OLED, and button all still working; the final pin map is documented
+  5. If there is no voice note, nothing plays and the OLED text reply still works (graceful fallback)
+**Plans**: TBD
+
+### Phase 4: Demo Readiness + Documentation
 **Goal**: All project documents accurately describe the implemented system and the team has a written runbook to execute and recover the live demo
-**Depends on**: Phase 2 (docs must describe the hardened, verified final state)
+**Depends on**: Phase 3 (docs must describe the final system, including voice notes)
 **Requirements**: DOC-01, DOC-02
 **Success Criteria** (what must be TRUE):
   1. README, PLAN.md, and PROGRESS.md contain no claims of unbuilt features that the code already implements (heartbeat, settings model, recognition-gated) — a grader reading the docs sees an accurate picture
@@ -59,9 +72,10 @@
 |-------|----------------|--------|-----------|
 | 1. Settings Wiring | 0/? | Not started | - |
 | 2. Security + Reliability Hardening | 0/? | Not started | - |
-| 3. Demo Readiness + Documentation | 0/? | Not started | - |
+| 3. Voice Notes (Speaker) | 0/? | Not started | - |
+| 4. Demo Readiness + Documentation | 0/? | Not started | - |
 
 ---
 
 *Roadmap created: 2026-06-27*
-*Last updated: 2026-06-27 (synced with teammate push 061d8b0 — Phase 2 now covers SEC-06 + OLED demo build)*
+*Last updated: 2026-06-27 (added Phase 3 Voice Notes; Demo+Docs → Phase 4)*
