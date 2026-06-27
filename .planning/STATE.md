@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-06-27T15:41:34.070Z"
+last_updated: "2026-06-27T18:25:04.865Z"
 progress:
   total_phases: 4
   completed_phases: 0
@@ -23,7 +23,7 @@ progress:
 
 **Core Value:** When a visitor presses the doorbell, the homeowner reliably gets a photo notification on Telegram, can respond, and the full round-trip is visible live on the dashboard.
 
-**Current Focus:** Phase 1 — Settings Wiring
+**Current Focus:** Phase 02 — security-reliability-hardening
 
 **Production URL:** https://smart-doorbell-production.up.railway.app
 
@@ -31,6 +31,8 @@ progress:
 
 ## Current Position
 
+Phase: 02 (security-reliability-hardening) — EXECUTING
+Plan: 1 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 — Settings Wiring |

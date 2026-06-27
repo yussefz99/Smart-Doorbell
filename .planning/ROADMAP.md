@@ -41,7 +41,7 @@
   6. Physical GPIO 13 button press on the live ESP32 demo build (`doorbell_step5_btn_io14`, with `TRIGGER_ON_BOOT false` and `X-Device-Key` wired in firmware) produces a photo notification in Telegram, a live dashboard update, and the homeowner's reply shown on the visitor OLED — full round-trip confirmed
   7. `GET /api/visits/{id}/response` without the correct `X-Device-Key` returns 401 or 403; with the correct header it returns the visit's reply text
 **Plans**: 3 plans (Rami / backend-only; SEC-03 + DEMO-01 are teammate-owned/verification)
-- [ ] 02-01-device-auth-PLAN.md — Require X-Device-Key on visit upload, heartbeat, and reply poll (gate-off-when-empty)
+- [x] 02-01-device-auth-PLAN.md — Require X-Device-Key on visit upload, heartbeat, and reply poll (gate-off-when-empty)
 - [ ] 02-02-webhook-auth-callback-hardening-PLAN.md — Validate the Telegram webhook secret token + bounds-check the reply callback parser
 - [ ] 02-03-db-bootstrap-device-contract-PLAN.md — init_db() bootstraps pgvector + visitors/visitor_embeddings; record teammate-owned SEC-03/DEMO-01 contract
 
@@ -75,7 +75,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Settings Wiring | 0/? | Not started | - |
-| 2. Security + Reliability Hardening | 0/3 | Not started | - |
+| 2. Security + Reliability Hardening | 1/3 | In Progress|  |
 | 3. Visitor Recognition | 0/? | Not started | - |
 | 4. Demo Readiness + Documentation | 0/? | Not started | - |
 
