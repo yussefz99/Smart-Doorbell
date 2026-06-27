@@ -128,6 +128,31 @@ def init_db():
 
                 INSERT INTO settings (id) VALUES (1)
                 ON CONFLICT (id) DO NOTHING;
+
+                -- Visitor recognition tables (REL-01). pgvector + visitors +
+                -- visitor_embeddings + visits.visitor_id. All idempotent, so
+                -- existing data is untouched and a dropped-table cold start
+                -- re-bootstraps cleanly. Recognition stays gated behind
+                -- RECOGNITION_ENABLED (Phase 3) — this only provisions schema.
+                CREATE EXTENSION IF NOT EXISTS vector;
+
+                CREATE TABLE IF NOT EXISTS visitors (
+                    id          SERIAL PRIMARY KEY,
+                    name        TEXT,
+                    photo_url   TEXT,
+                    first_seen  TIMESTAMPTZ,
+                    last_seen   TIMESTAMPTZ,
+                    visit_count INTEGER NOT NULL DEFAULT 0
+                );
+
+                CREATE TABLE IF NOT EXISTS visitor_embeddings (
+                    id         SERIAL PRIMARY KEY,
+                    visitor_id INTEGER REFERENCES visitors(id) ON DELETE CASCADE,
+                    embedding  vector(512)
+                );
+
+                ALTER TABLE visits
+                    ADD COLUMN IF NOT EXISTS visitor_id INTEGER REFERENCES visitors(id) ON DELETE SET NULL;
             """)
 
 # ── WebSocket connection manager ──────────────────────────────
