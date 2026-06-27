@@ -15,6 +15,9 @@ load_dotenv()
 # hosting dashboards (e.g. Railway) — they break the Telegram URL
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip().strip('"').strip("'")
 CHAT_ID   = os.getenv("CHAT_ID",   "").strip().strip('"').strip("'")
+# SEC-04: secret token registered with Telegram via setWebhook; Telegram then
+# echoes it in the X-Telegram-Bot-Api-Secret-Token header on every callback.
+WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip().strip('"').strip("'")
 
 if not BOT_TOKEN:
     print("[Telegram] WARNING: BOT_TOKEN is empty — notifications disabled")
@@ -147,10 +150,15 @@ async def set_webhook(public_url: str):
     Call this once after starting ngrok with the ngrok public URL.
     """
     webhook_url = f"{public_url}/telegram/webhook"
+    payload = {"url": webhook_url}
+    # Register the secret token so Telegram echoes it on every callback (SEC-04).
+    # Omit when empty so it never clears a previously-registered token.
+    if WEBHOOK_SECRET:
+        payload["secret_token"] = WEBHOOK_SECRET
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{TELEGRAM_API}/setWebhook",
-            json={"url": webhook_url},
+            json=payload,
             timeout=10,
         )
     data = resp.json()

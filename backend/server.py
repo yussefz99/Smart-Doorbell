@@ -49,6 +49,12 @@ DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "").strip()
 # on Railway AND in the firmware's secrets.h (SECRET_DEVICE_KEY).
 DEVICE_SECRET = os.getenv("DEVICE_SECRET", "").strip()
 
+# Secret token for the Telegram webhook (SEC-04). Telegram echoes it in the
+# X-Telegram-Bot-Api-Secret-Token header on every callback. Empty = check
+# disabled, so a deploy before setWebhook is re-run degrades to open rather
+# than dropping callbacks.
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+
 # Face recognition toggle — OFF unless explicitly enabled with
 # RECOGNITION_ENABLED=1. Keeping it off avoids the ~600 MB resident
 # model (Railway credit burn) while the team decides on the feature.
@@ -620,6 +626,15 @@ async def telegram_webhook(request: Request):
     Telegram calls this endpoint when the homeowner taps a reply button.
     Parses the callback, saves the response, pushes update to dashboard.
     """
+    # SEC-04: reject forged updates. Telegram echoes the registered secret in
+    # this header. Enforced only when TELEGRAM_WEBHOOK_SECRET is set, so an
+    # empty value stays open. Checked before any body parsing, so it guards both
+    # the typed-reply and inline-button paths below.
+    if TELEGRAM_WEBHOOK_SECRET and request.headers.get(
+        "X-Telegram-Bot-Api-Secret-Token", ""
+    ) != TELEGRAM_WEBHOOK_SECRET:
+        raise HTTPException(403, "Invalid webhook secret token")
+
     body = await request.json()
 
     # Typed reply: homeowner *replies* to the doorbell message with free text.
@@ -658,8 +673,14 @@ async def telegram_webhook(request: Request):
         await tg.answer_callback(callback_id, "Unknown action")
         return {"ok": True}
 
-    # Parse  "reply:<visit_id>:<response_text>"
-    parts      = data.split(":", 2)
+    # Parse  "reply:<visit_id>:<response_text>" — bounds-checked so malformed
+    # callback_data can't raise (an unhandled error would 500 and Telegram would
+    # retry it in a loop). SEC-05.
+    parts = data.split(":", 2)
+    if len(parts) < 3 or not parts[1].isdigit():
+        print(f"[Telegram] malformed callback_data: {data!r}")
+        await tg.answer_callback(callback_id, "Invalid reply")
+        return {"ok": True}
     visit_id   = int(parts[1])
     response   = parts[2]
 
