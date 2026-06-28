@@ -517,6 +517,26 @@ tbody tr:hover { background: var(--surface2); }
 .visitor-del:hover { color: var(--red); }
 .visitors-empty { text-align: center; color: var(--text-dim); padding: 48px 20px; line-height: 1.7; }
 .visitors-empty span { font-size: 12px; opacity: .8; }
+
+/* Visitor profile modal */
+.vmodal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; z-index: 50; overflow-y: auto; padding: 40px 16px; }
+.vmodal.open { display: flex; }
+.vmodal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 560px; padding: 22px; position: relative; }
+.vmodal-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+.vmodal-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.vmodal-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; cursor: pointer; flex-shrink: 0; }
+.vmodal-photo.placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg); font-size: 32px; cursor: default; }
+.vmodal-head h2 { font-size: 20px; margin: 0 0 4px; }
+.vmodal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.vmodal-h3 { font-size: 13px; color: var(--text-dim); margin: 0 0 10px; }
+.vtl { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.vtl-row { display: flex; align-items: center; gap: 12px; background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.vtl-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; cursor: pointer; flex-shrink: 0; }
+.vtl-thumb.placeholder { display: flex; align-items: center; justify-content: center; background: var(--surface); cursor: default; }
+.vtl-body { flex: 1; min-width: 0; }
+.vtl-date { font-size: 12px; color: var(--text-dim); }
+.vtl-resp { font-size: 13px; margin-top: 2px; }
+.v-muted { color: var(--text-dim); }
 .setting-row {
   display: flex;
   align-items: center;
@@ -776,6 +796,13 @@ select.setting-select {
   <img id="lightbox-img" src="" alt="visit photo">
 </div>
 
+<div class="vmodal" id="visitor-modal" onclick="if(event.target===this)closeVisitorProfile()">
+  <div class="vmodal-card">
+    <button class="vmodal-close" onclick="closeVisitorProfile()">✕</button>
+    <div id="vmodal-body"></div>
+  </div>
+</div>
+
 <div class="lock-screen" id="lock-screen">
   <div class="lock-card">
     <div class="lock-icon">🔔</div>
@@ -1014,6 +1041,7 @@ async function patchTag(id, tag) {
 }
 
 // ── Known Visitors (face recognition) ─────────────────────
+let visitorsList = [];
 function vEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 async function loadVisitors() {
@@ -1021,6 +1049,7 @@ async function loadVisitors() {
   const intro = document.getElementById('visitors-intro');
   try {
     const list = await fetchJSON('/api/visitors');
+    visitorsList = list;
     if (!list.length) {
       intro.innerHTML = '';
       grid.innerHTML = `<div class="visitors-empty">No known visitors yet.<br>
@@ -1037,16 +1066,15 @@ async function loadVisitors() {
 }
 
 function renderVisitorCard(v) {
-  const display = v.name || `Unnamed #${v.id}`;
   const photo = v.photo_url
-    ? `<img class="visitor-photo" src="${vEsc(v.photo_url)}" alt="${vEsc(display)}" onclick="openLightbox('${vEsc(v.photo_url)}')">`
-    : `<div class="visitor-photo placeholder">👤</div>`;
+    ? `<img class="visitor-photo" src="${vEsc(v.photo_url)}" alt="" onclick="openVisitorProfile(${v.id})">`
+    : `<div class="visitor-photo placeholder" onclick="openVisitorProfile(${v.id})">👤</div>`;
   return `<div class="visitor-card">
     ${photo}
     <div class="visitor-body">
       <input class="visitor-name" value="${vEsc(v.name||'')}" placeholder="Unnamed #${v.id}"
              onchange="renameVisitor(${v.id}, this.value, this)">
-      <div class="visitor-meta">${v.visit_count} visit${v.visit_count===1?'':'s'} · last seen ${timeAgo(v.last_seen)}</div>
+      <div class="visitor-meta" style="cursor:pointer" onclick="openVisitorProfile(${v.id})">${v.visit_count} visit${v.visit_count===1?'':'s'} · last seen ${timeAgo(v.last_seen)} ›</div>
     </div>
     <button class="visitor-del" title="Remove" onclick="deleteVisitor(${v.id})">🗑</button>
   </div>`;
@@ -1074,6 +1102,53 @@ async function deleteVisitor(id) {
     await fetch(`${API}/api/visitors/${id}`, { method: 'DELETE', headers: authHeaders() });
   } catch (e) {}
   loadVisitors();
+}
+
+// Visitor profile: stats + full visit history (built from the loaded visits).
+function openVisitorProfile(id) {
+  const v = visitorsList.find(x => x.id === id);
+  if (!v) return;
+  const theirs  = visits.filter(x => x.visitor_id === id);
+  const replies = theirs.filter(x => x.response && x.response.length).length;
+  const rate    = theirs.length ? Math.round(replies / theirs.length * 100) : 0;
+  const name    = v.name || `Unnamed #${v.id}`;
+  const photo   = v.photo_url
+    ? `<img class="vmodal-photo" src="${vEsc(v.photo_url)}" onclick="openLightbox('${vEsc(v.photo_url)}')">`
+    : `<div class="vmodal-photo placeholder">👤</div>`;
+
+  const rows = theirs.length ? theirs.map(x => `
+    <div class="vtl-row">
+      ${x.photo_url
+        ? `<img class="vtl-thumb" src="${vEsc(x.photo_url)}" onclick="openLightbox('${vEsc(x.photo_url)}')">`
+        : `<div class="vtl-thumb placeholder">📷</div>`}
+      <div class="vtl-body">
+        <div class="vtl-date">${fmtDate(x.timestamp)}</div>
+        <div class="vtl-resp">${x.response ? '💬 ' + vEsc(x.response) : '<span class="v-muted">no reply</span>'}</div>
+      </div>
+      ${x.tag ? `<span class="badge">${vEsc(x.tag)}</span>` : ''}
+    </div>`).join('') : '<div class="v-muted" style="padding:14px">No visit records loaded yet.</div>';
+
+  document.getElementById('vmodal-body').innerHTML = `
+    <div class="vmodal-head">
+      ${photo}
+      <div>
+        <h2>${vEsc(name)}</h2>
+        <div class="v-muted">Known since ${fmtDate(v.first_seen)} · last seen ${timeAgo(v.last_seen)}</div>
+      </div>
+    </div>
+    <div class="vmodal-stats">
+      ${sc('Total Visits', v.visit_count, '', 'accent')}
+      ${sc('Reply Rate',   rate + '%', '', rate > 50 ? 'green' : 'yellow')}
+      ${sc('Logged',       theirs.length, '', 'accent')}
+    </div>
+    <h3 class="vmodal-h3">Visit history</h3>
+    <div class="vtl">${rows}</div>`;
+
+  document.getElementById('visitor-modal').classList.add('open');
+}
+
+function closeVisitorProfile() {
+  document.getElementById('visitor-modal').classList.remove('open');
 }
 
 // ── Load all data ─────────────────────────────────────────
