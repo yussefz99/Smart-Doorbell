@@ -25,15 +25,13 @@ ESP32-CAM ──(HTTPS)──▶ FastAPI on Railway ──▶ Supabase PostgreSQ
 - Dashboard: visit history with photo lightbox, statistics (daily/hourly charts), diagnostics with real device online/offline heartbeat, quiet-hours settings
 - Quiet hours: visits during the configured window are recorded but delivered silently
 - Password gate on all dashboard/API read endpoints
-- Face recognition (visitor identification, "Rami is at the door") — implemented end-to-end but disabled by default (`RECOGNITION_ENABLED=1` to enable; see SESSION_HANDOFF.md)
+- Face recognition (visitor identification, "Rami is at the door") — implemented end-to-end but disabled by default (`RECOGNITION_ENABLED=1` to enable; see Documentation/SESSION_HANDOFF.md)
 
 ## Folder description:
 * **ESP32**: source code for the esp side (firmware). Main sketch: `doorbell_step5_complete_v1/` (credentials go in `secrets.h`, copy from `secrets.h.example`)
 * **backend**: FastAPI server (`server.py`), Telegram helper (`telegram_bot.py`), face recognition module (`recognition.py`), dashboard (`dashboard.html`), deployment files (`Procfile`, `railpack.json`, `requirements.txt`)
-* **Documentation**: wiring diagram + basic operating instructions
+* **Documentation**: wiring diagram, operating instructions, user stories, demo runbook, and project docs (`PLAN.md`, `PROGRESS.md`, `SESSION_HANDOFF.md` — planning, session-by-session progress log, and current-state handoff)
 * **Unit Tests**: tests for individual hardware components (input / output devices) — step-by-step sketches: LEDs/button/buzzer, WiFi+Telegram, camera capture, photo upload, complete flow
-* **flutter_app**: dart code for our Flutter app (not part of V1)
-* **PLAN.md / PROGRESS.md / SESSION_HANDOFF.md**: planning, session-by-session progress log, and current-state handoff
 
 ## ESP32 SDK version used in this project:
 ESP32 Arduino core (board: **AI Thinker ESP32-CAM**) — see Arduino IDE → Boards Manager for the installed version
