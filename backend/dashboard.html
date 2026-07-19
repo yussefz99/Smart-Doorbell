@@ -775,6 +775,18 @@ select.setting-select {
         </div>
 
         <div class="settings-card">
+          <h3>🏠 Away Mode</h3>
+          <div class="setting-row">
+            <div><div class="setting-label">Enable Away Mode</div><div class="setting-sub">When on, a bell press auto-replies to the visitor with the message below and records it — you still get the notification</div></div>
+            <label class="toggle"><input type="checkbox" id="s-away"><span class="toggle-slider"></span></label>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Auto-reply message</div>
+            <input class="time-input" type="text" id="s-away-msg" maxlength="120" style="width:220px" placeholder="Sorry, no one is home right now.">
+          </div>
+        </div>
+
+        <div class="settings-card">
           <h3>💬 Telegram</h3>
           <div class="setting-row">
             <div class="setting-label">Bot Status</div>
@@ -888,13 +900,15 @@ function playDing() {
   } catch (e) { /* sound blocked until first user interaction */ }
 }
 
-// ── Settings (quiet hours) ────────────────────────────────
+// ── Settings (quiet hours + away mode) ────────────────────
 async function loadSettings() {
   try {
     const s = await fetchJSON('/api/settings');
     document.getElementById('s-quiet').checked       = s.quiet_enabled;
     document.getElementById('s-quiet-start').value   = s.quiet_start;
     document.getElementById('s-quiet-end').value     = s.quiet_end;
+    document.getElementById('s-away').checked         = s.away_enabled;
+    document.getElementById('s-away-msg').value       = s.away_message || '';
   } catch (e) { /* lock screen handles 401 */ }
 }
 
@@ -904,6 +918,8 @@ async function saveSettings() {
     quiet_enabled: document.getElementById('s-quiet').checked,
     quiet_start:   document.getElementById('s-quiet-start').value,
     quiet_end:     document.getElementById('s-quiet-end').value,
+    away_enabled:  document.getElementById('s-away').checked,
+    away_message:  document.getElementById('s-away-msg').value.trim(),
   };
   try {
     const r = await fetch(API + '/api/settings', {
@@ -920,7 +936,7 @@ async function saveSettings() {
   setTimeout(() => { el.textContent = ''; }, 2500);
 }
 
-['s-quiet', 's-quiet-start', 's-quiet-end'].forEach(id =>
+['s-quiet', 's-quiet-start', 's-quiet-end', 's-away', 's-away-msg'].forEach(id =>
   document.getElementById(id).addEventListener('change', saveSettings));
 
 // ── Photo lightbox ────────────────────────────────────────

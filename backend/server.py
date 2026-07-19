@@ -123,8 +123,17 @@ def init_db():
                     quiet_enabled BOOLEAN NOT NULL DEFAULT FALSE,
                     quiet_start   TEXT NOT NULL DEFAULT '22:00',
                     quiet_end     TEXT NOT NULL DEFAULT '07:00',
-                    timezone      TEXT NOT NULL DEFAULT 'Asia/Jerusalem'
+                    timezone      TEXT NOT NULL DEFAULT 'Asia/Jerusalem',
+                    away_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
+                    away_message  TEXT NOT NULL DEFAULT 'Sorry, no one is home right now.'
                 );
+
+                -- Away-mode columns for deployments whose settings table predates
+                -- the feature (CREATE TABLE IF NOT EXISTS won't add them).
+                ALTER TABLE settings
+                    ADD COLUMN IF NOT EXISTS away_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE settings
+                    ADD COLUMN IF NOT EXISTS away_message TEXT NOT NULL DEFAULT 'Sorry, no one is home right now.';
 
                 INSERT INTO settings (id) VALUES (1)
                 ON CONFLICT (id) DO NOTHING;
@@ -226,6 +235,9 @@ class SettingsUpdate(BaseModel):
     quiet_enabled: bool
     quiet_start:   str   # "HH:MM"
     quiet_end:     str   # "HH:MM"
+    # Away mode — optional so partial/older clients keep working
+    away_enabled:  Optional[bool] = None
+    away_message:  Optional[str]  = None
 
 
 # ── Quiet hours ───────────────────────────────────────────────
@@ -319,6 +331,8 @@ def get_settings():
         "quiet_start":   s["quiet_start"],
         "quiet_end":     s["quiet_end"],
         "timezone":      s["timezone"],
+        "away_enabled":  bool(s["away_enabled"]),
+        "away_message":  s["away_message"],
     }
 
 
@@ -326,9 +340,22 @@ def get_settings():
 def update_settings(body: SettingsUpdate):
     if not _TIME_RE.match(body.quiet_start) or not _TIME_RE.match(body.quiet_end):
         raise HTTPException(400, "times must be HH:MM (24h)")
+
+    # away_* are optional: fall back to the stored value when omitted so a
+    # partial update never clears the other fields.
+    cur = db_fetchone("SELECT away_enabled, away_message FROM settings WHERE id=1")
+    away_enabled = cur["away_enabled"] if body.away_enabled is None else body.away_enabled
+    away_message = cur["away_message"] if body.away_message is None else body.away_message.strip()
+    if not away_message:
+        raise HTTPException(400, "away_message cannot be empty")
+
     db_execute(
-        "UPDATE settings SET quiet_enabled=%s, quiet_start=%s, quiet_end=%s WHERE id=1",
-        (body.quiet_enabled, body.quiet_start, body.quiet_end)
+        """UPDATE settings
+              SET quiet_enabled=%s, quiet_start=%s, quiet_end=%s,
+                  away_enabled=%s, away_message=%s
+            WHERE id=1""",
+        (body.quiet_enabled, body.quiet_start, body.quiet_end,
+         away_enabled, away_message)
     )
     return get_settings()
 
@@ -503,6 +530,26 @@ async def create_visit(
             (msg_id, visit_id)
         )
         visit["telegram_message_id"] = msg_id
+
+    # Away mode: auto-reply on the homeowner's behalf. Writes the preset text to
+    # the same `response` field a real reply fills, so the dashboard, the OLED
+    # (/response poll) and Telegram all reflect it. The notification still went
+    # out above, so the homeowner still sees who came. Non-fatal by design.
+    try:
+        s = db_fetchone("SELECT away_enabled, away_message FROM settings WHERE id=1")
+        if s and s["away_enabled"] and not visit.get("response"):
+            away_msg = (s["away_message"] or "").strip() or "No one is home right now."
+            db_execute("UPDATE visits SET response=%s WHERE id=%s", (away_msg, visit_id))
+            visit["response"] = away_msg
+            if msg_id:
+                ts_label      = visit["timestamp"][:16].replace("T", " ")
+                trigger_label = "🔔 Doorbell" if visit["trigger"] == "button" else "👁 Motion"
+                await tg.remove_buttons(
+                    msg_id,
+                    f"{trigger_label} · {ts_label}\n🏠 Away mode — auto-replied: {away_msg}"
+                )
+    except Exception as e:
+        print(f"[Away] auto-reply failed: {e!r}")
 
     # Push to all connected dashboard clients
     await manager.broadcast({"type": "new_visit", "data": visit})
