@@ -20,3 +20,7 @@ Thumbs.db
 
 # Local test images
 backend/*.jpg
+
+# Poster files — kept out of the repo (large binaries; live outside git)
+*Poster*.pptx
+*Poster*.pdf
