@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" font-family="Arial, sans-serif">
+  <rect x="0" y="0" width="1200" height="280" fill="#ffffff"/>
+  <text x="600" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#1c2b3a">How it works</text>
+
+  <!-- defs: arrow -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#028090"/>
+    </marker>
+  </defs>
+
+  <!-- boxes -->
+  <!-- positions: x = 20,215,410,605,800,995 ; w=160 h=140 y=70 -->
+  <g>
+    <!-- 1 Press -->
+    <rect x="20"  y="70" width="160" height="150" rx="12" fill="#f3f7fa" stroke="#cdd9e3"/>
+    <circle cx="44" cy="96" r="14" fill="#028090"/><text x="44" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">1</text>
+    <text x="100" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Press</text>
+    <text x="100" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">Visitor presses</text>
+    <text x="100" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">the button</text>
+
+    <!-- 2 Capture -->
+    <rect x="215" y="70" width="160" height="150" rx="12" fill="#f3f7fa" stroke="#cdd9e3"/>
+    <circle cx="239" cy="96" r="14" fill="#028090"/><text x="239" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">2</text>
+    <text x="295" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Capture</text>
+    <text x="295" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">ESP32-CAM takes</text>
+    <text x="295" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">a photo</text>
+
+    <!-- 3 Upload -->
+    <rect x="410" y="70" width="160" height="150" rx="12" fill="#f3f7fa" stroke="#cdd9e3"/>
+    <circle cx="434" cy="96" r="14" fill="#028090"/><text x="434" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">3</text>
+    <text x="490" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Process</text>
+    <text x="490" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">Cloud backend +</text>
+    <text x="490" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">face recognition</text>
+
+    <!-- 4 Notify -->
+    <rect x="605" y="70" width="160" height="150" rx="12" fill="#f3f7fa" stroke="#cdd9e3"/>
+    <circle cx="629" cy="96" r="14" fill="#028090"/><text x="629" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">4</text>
+    <text x="685" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Notify</text>
+    <text x="685" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">Telegram alert +</text>
+    <text x="685" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">reply buttons</text>
+
+    <!-- 5 Reply -->
+    <rect x="800" y="70" width="160" height="150" rx="12" fill="#f3f7fa" stroke="#cdd9e3"/>
+    <circle cx="824" cy="96" r="14" fill="#028090"/><text x="824" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">5</text>
+    <text x="880" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Reply</text>
+    <text x="880" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">Homeowner taps</text>
+    <text x="880" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">or types</text>
+
+    <!-- 6 Show -->
+    <rect x="995" y="70" width="185" height="150" rx="12" fill="#02809015" stroke="#028090" stroke-width="1.5"/>
+    <circle cx="1019" cy="96" r="14" fill="#028090"/><text x="1019" y="101" text-anchor="middle" font-size="14" font-weight="bold" fill="#fff">6</text>
+    <text x="1087" y="130" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c2b3a">Show</text>
+    <text x="1087" y="158" text-anchor="middle" font-size="12" fill="#4a5b6b">Reply on the door</text>
+    <text x="1087" y="174" text-anchor="middle" font-size="12" fill="#4a5b6b">OLED + dashboard</text>
+  </g>
+
+  <!-- arrows between boxes -->
+  <g stroke="#028090" stroke-width="2.5" fill="none">
+    <line x1="184" y1="145" x2="209" y2="145" marker-end="url(#arr)"/>
+    <line x1="379" y1="145" x2="404" y2="145" marker-end="url(#arr)"/>
+    <line x1="574" y1="145" x2="599" y2="145" marker-end="url(#arr)"/>
+    <line x1="769" y1="145" x2="794" y2="145" marker-end="url(#arr)"/>
+    <line x1="964" y1="145" x2="989" y2="145" marker-end="url(#arr)"/>
+  </g>
+</svg>

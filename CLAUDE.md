@@ -29,7 +29,7 @@ reply → dashboard loop must work.
 ## Technology Stack
 
 ## Languages
-- C/C++ (Arduino dialect) — ESP32 firmware (`ESP32/doorbell_step5_complete_v1/doorbell_step5_complete_v1.ino` and all earlier step sketches)
+- C/C++ (Arduino dialect) — ESP32 firmware. **Final/demo build: `ESP32/doorbell_final/doorbell_final.ino`** (button on IO13 + OLED status). `doorbell_step5_complete_v1` (no OLED) and the earlier step sketches are development iterations kept for reference; deep technical references below that cite `doorbell_step5_complete_v1.ino` line numbers describe that iteration.
 - Python 3 — Backend server (`backend/server.py`, `backend/telegram_bot.py`, `backend/recognition.py`)
 - JavaScript (Vanilla ES2020+) — Browser dashboard embedded in `backend/dashboard.html`
 - HTML/CSS — Dashboard UI, single-file (`backend/dashboard.html`, ~1400 lines)
@@ -196,7 +196,7 @@ reply → dashboard loop must work.
 ## Component Responsibilities
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| ESP32 Firmware | Button detection, camera capture, HTTPS upload, heartbeat | `ESP32/doorbell_step5_complete_v1/doorbell_step5_complete_v1.ino` |
+| ESP32 Firmware | Button detection, camera capture, HTTPS upload, heartbeat, OLED status | `ESP32/doorbell_final/doorbell_final.ino` (final build; `doorbell_step5_complete_v1.ino` = earlier no-OLED iteration) |
 | FastAPI Server | REST API, WebSocket manager, visit persistence, quiet hours | `backend/server.py` |
 | Telegram Bot Helper | Send photo notifications, handle reply callbacks, manage webhook | `backend/telegram_bot.py` |
 | Face Recognition | Extract embeddings, match/create visitor records (off by default) | `backend/recognition.py` |

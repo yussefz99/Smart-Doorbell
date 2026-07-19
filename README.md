@@ -28,7 +28,7 @@ ESP32-CAM ──(HTTPS)──▶ FastAPI on Railway ──▶ Supabase PostgreSQ
 - Face recognition (visitor identification, "Rami is at the door") — implemented end-to-end but disabled by default (`RECOGNITION_ENABLED=1` to enable; see Documentation/SESSION_HANDOFF.md)
 
 ## Folder description:
-* **ESP32**: source code for the esp side (firmware). Main sketch: `doorbell_step5_complete_v1/` (credentials go in `secrets.h`, copy from `secrets.h.example`)
+* **ESP32**: source code for the esp side (firmware). **Final/demo sketch: `doorbell_final/`** — the canonical build (button on IO13 + 128×64 OLED status display). Credentials go in `secrets.h` (copy from `secrets.h.example`). The `doorbell_step5_*` folders and step2–4 sketches are earlier development iterations kept for reference.
 * **backend**: FastAPI server (`server.py`), Telegram helper (`telegram_bot.py`), face recognition module (`recognition.py`), dashboard (`dashboard.html`), deployment files (`Procfile`, `railpack.json`, `requirements.txt`)
 * **Documentation**: wiring diagram, operating instructions, user stories, demo runbook, and project docs (`PLAN.md`, `PROGRESS.md`, `SESSION_HANDOFF.md` — planning, session-by-session progress log, and current-state handoff)
 * **Unit Tests**: tests for individual hardware components (input / output devices) — step-by-step sketches: LEDs/button/buzzer, WiFi+Telegram, camera capture, photo upload, complete flow
@@ -59,7 +59,7 @@ uvicorn server:app --reload --port 8001
 
 # Deployment: push to main — Railway auto-deploys
 ```
-Firmware: open `ESP32/doorbell_step5_complete_v1/` in Arduino IDE, create `secrets.h` from the example, select board *AI Thinker ESP32-CAM*, upload at 115200 baud.
+Firmware: open `ESP32/doorbell_final/` in Arduino IDE, create `secrets.h` from the example, select board *AI Thinker ESP32-CAM*, upload at 115200 baud. (Requires the **U8g2** library for the OLED — install via Library Manager.)
 
 ## Project Poster:
 (to be added)
