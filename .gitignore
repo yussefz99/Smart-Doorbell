@@ -24,3 +24,7 @@ backend/*.jpg
 # Poster files — kept out of the repo (large binaries; live outside git)
 *Poster*.pptx
 *Poster*.pdf
+
+# Internal / local-only — kept on disk but out of the shared repo
+CLAUDE.md
+.planning/
