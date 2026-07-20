@@ -1,7 +1,7 @@
 # Configurable Parameters — ESP32 Firmware
 
 All tunable parameters live at the **top of the final sketch**
-[`ESP32/doorbell_final/doorbell_final.ino`](../ESP32/doorbell_final/doorbell_final.ino).
+[`ESP32/ESP32.ino`](../ESP32/ESP32.ino).
 Edit them there before flashing. Secrets are kept out of the sketch in a
 gitignored `secrets.h` (copy from `secrets.h.example`).
 
@@ -9,7 +9,7 @@ gitignored `secrets.h` (copy from `secrets.h.example`).
 
 ## 1. Secrets — `secrets.h` (never committed)
 
-Copy `ESP32/doorbell_final/secrets.h.example` to `secrets.h` and fill in:
+Copy `ESP32/secrets.h.example` to `secrets.h` and fill in:
 
 | Macro | What it is |
 |-------|------------|

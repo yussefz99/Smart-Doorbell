@@ -29,7 +29,7 @@ reply → dashboard loop must work.
 ## Technology Stack
 
 ## Languages
-- C/C++ (Arduino dialect) — ESP32 firmware. **Final/demo build: `ESP32/doorbell_final/doorbell_final.ino`** (button on IO13 + OLED status). `doorbell_step5_complete_v1` (no OLED) and the earlier step sketches are development iterations kept under `Unit Tests/`; deep technical references below that cite `doorbell_step5_complete_v1.ino` line numbers describe that iteration (now at `Unit Tests/doorbell_step5_complete_v1/`).
+- C/C++ (Arduino dialect) — ESP32 firmware. **Final/demo build: `ESP32/ESP32.ino`** (button on IO13 + OLED status). `doorbell_step5_complete_v1` (no OLED) and the earlier step sketches are development iterations kept under `Unit Tests/`; deep technical references below that cite `doorbell_step5_complete_v1.ino` line numbers describe that iteration (now at `Unit Tests/doorbell_step5_complete_v1/`).
 - Python 3 — Backend server (`backend/server.py`, `backend/telegram_bot.py`, `backend/recognition.py`)
 - JavaScript (Vanilla ES2020+) — Browser dashboard embedded in `backend/dashboard.html`
 - HTML/CSS — Dashboard UI, single-file (`backend/dashboard.html`, ~1400 lines)
@@ -73,7 +73,7 @@ reply → dashboard loop must work.
 - Loaded from `backend/.env` locally (gitignored) and Railway Variables in production
 - Required env vars:
 - Optional env vars:
-- Secrets in `ESP32/doorbell_final/secrets.h` (gitignored; template at `ESP32/doorbell_final/secrets.h.example`)
+- Secrets in `ESP32/secrets.h` (gitignored; template at `ESP32/secrets.h.example`)
 - Defines: `SECRET_WIFI_SSID`, `SECRET_WIFI_PASSWORD`, `SECRET_BOT_TOKEN`, `SECRET_CHAT_ID`
 - Hardcoded backend URL in sketch: `BACKEND_URL = "https://smart-doorbell-production.up.railway.app"` (`doorbell_step5_complete_v1.ino` line 27)
 - Demo-mode flag: `TRIGGER_ON_BOOT true` (line 42) — fires one event on RESET; set to `false` after button is soldered
@@ -95,7 +95,7 @@ reply → dashboard loop must work.
 ## ESP32 Firmware (Arduino C/C++)
 ### Files
 - Sketches use `.ino` extension: `doorbell_step5_complete_v1.ino`
-- Each sketch lives in a same-named subdirectory: `ESP32/doorbell_final/doorbell_final.ino`
+- Each sketch lives in a same-named subdirectory: `ESP32/ESP32.ino` (final build), `Unit Tests/<name>/<name>.ino` (dev sketches)
 - Secret header lives alongside the sketch: `secrets.h` (gitignored), with a committed template `secrets.h.example`
 - Non-secret constants are defined inline in each sketch (the old `ESP32/parameters.h` was unused and removed)
 ### Naming Patterns
@@ -196,7 +196,7 @@ reply → dashboard loop must work.
 ## Component Responsibilities
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| ESP32 Firmware | Button detection, camera capture, HTTPS upload, heartbeat, OLED status | `ESP32/doorbell_final/doorbell_final.ino` (final build; `doorbell_step5_complete_v1.ino` = earlier no-OLED iteration) |
+| ESP32 Firmware | Button detection, camera capture, HTTPS upload, heartbeat, OLED status | `ESP32/ESP32.ino` (final build; `doorbell_step5_complete_v1.ino` = earlier no-OLED iteration) |
 | FastAPI Server | REST API, WebSocket manager, visit persistence, quiet hours | `backend/server.py` |
 | Telegram Bot Helper | Send photo notifications, handle reply callbacks, manage webhook | `backend/telegram_bot.py` |
 | Face Recognition | Extract embeddings, match/create visitor records (off by default) | `backend/recognition.py` |

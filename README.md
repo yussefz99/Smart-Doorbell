@@ -28,10 +28,10 @@ ESP32-CAM ──(HTTPS)──▶ FastAPI on Railway ──▶ Supabase PostgreSQ
 - Face recognition (visitor identification, "Rami is at the door") — implemented end-to-end but disabled by default (`RECOGNITION_ENABLED=1` to enable; see Documentation/SESSION_HANDOFF.md)
 
 ## Folder description:
-* **ESP32**: source code for the esp side (firmware). **Final/demo sketch: `doorbell_final/`** — the canonical build (button on IO13 + 128×64 OLED status display). Credentials go in `secrets.h` (copy from `secrets.h.example`). The `doorbell_step5_*` folders and step2–4 sketches are earlier development iterations kept for reference.
+* **ESP32**: source code for the esp side (firmware) — the canonical build is `ESP32.ino` (button on IO13 + 128×64 OLED status display). Credentials go in `secrets.h` (copy from `secrets.h.example`). Earlier development iterations live under `Unit Tests/`.
 * **backend**: FastAPI server (`server.py`), Telegram helper (`telegram_bot.py`), face recognition module (`recognition.py`), dashboard (`dashboard.html`), deployment files (`Procfile`, `railpack.json`, `requirements.txt`)
 * **Documentation**: wiring diagram, operating instructions, user stories, demo runbook, **configurable firmware parameters** (`CONFIGURABLE-PARAMETERS.md`), and project docs (`PLAN.md`, `PROGRESS.md`, `SESSION_HANDOFF.md` — planning, session-by-session progress log, and current-state handoff)
-* **Unit Tests**: development history + component tests — step-by-step sketches (LEDs/button/buzzer, WiFi+Telegram, camera capture, photo upload, complete flow), the OLED build (`doorbell_step5_btn_io14`, which `doorbell_final` is based on), an `i2c_scanner` diagnostic, and the prebuilt firmware binary (`compiled_program.bin`)
+* **Unit Tests**: development history + component tests — step-by-step sketches (LEDs/button/buzzer, WiFi+Telegram, camera capture, photo upload, complete flow), the OLED build (`doorbell_step5_btn_io14`, which `ESP32.ino` is based on), an `i2c_scanner` diagnostic, and the prebuilt firmware binary (`compiled_program.bin`)
 
 ## ESP32 SDK version used in this project:
 ESP32 Arduino core (board: **AI Thinker ESP32-CAM**) — see Arduino IDE → Boards Manager for the installed version
@@ -59,7 +59,7 @@ uvicorn server:app --reload --port 8001
 
 # Deployment: push to main — Railway auto-deploys
 ```
-Firmware: open `ESP32/doorbell_final/` in Arduino IDE, create `secrets.h` from the example, select board *AI Thinker ESP32-CAM*, upload at 115200 baud. (Requires the **U8g2** library for the OLED — install via Library Manager.)
+Firmware: open `ESP32/ESP32.ino` in Arduino IDE, create `secrets.h` from the example, select board *AI Thinker ESP32-CAM*, upload at 115200 baud. (Requires the **U8g2** library for the OLED — install via Library Manager.)
 
 ## Project Poster:
 (to be added)
