@@ -29,7 +29,7 @@ reply → dashboard loop must work.
 ## Technology Stack
 
 ## Languages
-- C/C++ (Arduino dialect) — ESP32 firmware. **Final/demo build: `ESP32/doorbell_final/doorbell_final.ino`** (button on IO13 + OLED status). `doorbell_step5_complete_v1` (no OLED) and the earlier step sketches are development iterations kept for reference; deep technical references below that cite `doorbell_step5_complete_v1.ino` line numbers describe that iteration.
+- C/C++ (Arduino dialect) — ESP32 firmware. **Final/demo build: `ESP32/doorbell_final/doorbell_final.ino`** (button on IO13 + OLED status). `doorbell_step5_complete_v1` (no OLED) and the earlier step sketches are development iterations kept under `Unit Tests/`; deep technical references below that cite `doorbell_step5_complete_v1.ino` line numbers describe that iteration (now at `Unit Tests/doorbell_step5_complete_v1/`).
 - Python 3 — Backend server (`backend/server.py`, `backend/telegram_bot.py`, `backend/recognition.py`)
 - JavaScript (Vanilla ES2020+) — Browser dashboard embedded in `backend/dashboard.html`
 - HTML/CSS — Dashboard UI, single-file (`backend/dashboard.html`, ~1400 lines)
@@ -73,12 +73,12 @@ reply → dashboard loop must work.
 - Loaded from `backend/.env` locally (gitignored) and Railway Variables in production
 - Required env vars:
 - Optional env vars:
-- Secrets in `ESP32/doorbell_step5_complete_v1/secrets.h` (gitignored; template at `ESP32/doorbell_step5_complete_v1/secrets.h.example`)
+- Secrets in `ESP32/doorbell_final/secrets.h` (gitignored; template at `ESP32/doorbell_final/secrets.h.example`)
 - Defines: `SECRET_WIFI_SSID`, `SECRET_WIFI_PASSWORD`, `SECRET_BOT_TOKEN`, `SECRET_CHAT_ID`
 - Hardcoded backend URL in sketch: `BACKEND_URL = "https://smart-doorbell-production.up.railway.app"` (`doorbell_step5_complete_v1.ino` line 27)
 - Demo-mode flag: `TRIGGER_ON_BOOT true` (line 42) — fires one event on RESET; set to `false` after button is soldered
 - Backend: no build step — Python source deployed directly
-- Firmware: Arduino IDE (board: AI Thinker ESP32-CAM, port COM3, baud 115200); pre-compiled binary at `ESP32/compiled_program.bin`
+- Firmware: Arduino IDE (board: AI Thinker ESP32-CAM, port COM3, baud 115200); pre-compiled binary at `Unit Tests/compiled_program.bin`
 ## Platform Requirements
 - Python 3.13+
 - Arduino IDE with ESP32 board support package (AI Thinker ESP32-CAM profile)
@@ -95,9 +95,9 @@ reply → dashboard loop must work.
 ## ESP32 Firmware (Arduino C/C++)
 ### Files
 - Sketches use `.ino` extension: `doorbell_step5_complete_v1.ino`
-- Each sketch lives in a same-named subdirectory: `ESP32/doorbell_step5_complete_v1/doorbell_step5_complete_v1.ino`
+- Each sketch lives in a same-named subdirectory: `ESP32/doorbell_final/doorbell_final.ino`
 - Secret header lives alongside the sketch: `secrets.h` (gitignored), with a committed template `secrets.h.example`
-- Shared constants (non-secret) live in a top-level header: `ESP32/parameters.h`
+- Non-secret constants are defined inline in each sketch (the old `ESP32/parameters.h` was unused and removed)
 ### Naming Patterns
 - ALL_CAPS with underscores: `PIN_BUZZER`, `DEBOUNCE_MS`, `BEEP_SHORT_MS`, `HEARTBEAT_MS`
 - Secret macros prefixed `SECRET_`: `SECRET_WIFI_SSID`, `SECRET_BOT_TOKEN`
