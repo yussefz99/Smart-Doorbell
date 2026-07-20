@@ -30,7 +30,7 @@ ESP32-CAM ──(HTTPS)──▶ FastAPI on Railway ──▶ Supabase PostgreSQ
 ## Folder description:
 * **ESP32**: source code for the esp side (firmware). **Final/demo sketch: `doorbell_final/`** — the canonical build (button on IO13 + 128×64 OLED status display). Credentials go in `secrets.h` (copy from `secrets.h.example`). The `doorbell_step5_*` folders and step2–4 sketches are earlier development iterations kept for reference.
 * **backend**: FastAPI server (`server.py`), Telegram helper (`telegram_bot.py`), face recognition module (`recognition.py`), dashboard (`dashboard.html`), deployment files (`Procfile`, `railpack.json`, `requirements.txt`)
-* **Documentation**: wiring diagram, operating instructions, user stories, demo runbook, and project docs (`PLAN.md`, `PROGRESS.md`, `SESSION_HANDOFF.md` — planning, session-by-session progress log, and current-state handoff)
+* **Documentation**: wiring diagram, operating instructions, user stories, demo runbook, **configurable firmware parameters** (`CONFIGURABLE-PARAMETERS.md`), and project docs (`PLAN.md`, `PROGRESS.md`, `SESSION_HANDOFF.md` — planning, session-by-session progress log, and current-state handoff)
 * **Unit Tests**: development history + component tests — step-by-step sketches (LEDs/button/buzzer, WiFi+Telegram, camera capture, photo upload, complete flow), the OLED build (`doorbell_step5_btn_io14`, which `doorbell_final` is based on), an `i2c_scanner` diagnostic, and the prebuilt firmware binary (`compiled_program.bin`)
 
 ## ESP32 SDK version used in this project:
